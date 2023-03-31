@@ -77,6 +77,11 @@ namespace glas
 		return TypeInfoMap;
 	}
 
+	const std::unordered_map<TypeId, TypeInfo>& GetAllTypeInfo()
+	{
+		return GetTypeInfoMap();
+	}
+
 	template <typename T>
 	const TypeInfo& RegisterType()
 	{

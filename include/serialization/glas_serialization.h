@@ -78,7 +78,7 @@ namespace glas::Serialization
 	}
 
 	template <typename T>
-	void SerializeType(std::ostream& stream, T& data)
+	void SerializeType(std::ostream& stream, const T& data)
 	{
 		SerializeType(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
 	}
@@ -105,14 +105,14 @@ namespace glas::Serialization
 	}
 
 	template <typename T>
-	void SerializeTypeBinary(std::ostream& stream, T& data)
+	void SerializeTypeBinary(std::ostream& stream, const T& data)
 	{
 		SerializeTypeBinary(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
 	}
 
 	/** DESERIALIZER */
 
-	inline void DeserializeType(std::istream& stream, void* data, TypeId id)
+	inline void DeserializeType(std::istream& stream, void* data, TypeId type)
 	{
 		auto& info = GetTypeInfo(id);
 
@@ -153,7 +153,7 @@ namespace glas::Serialization
 		DeserializeType(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
 	}
 
-	inline void DeserializeTypeBinary(std::istream& stream, void* data, TypeId id)
+	inline void DeserializeTypeBinary(std::istream& stream, void* data, TypeId type)
 	{
 		auto& info = GetTypeInfo(id);
 

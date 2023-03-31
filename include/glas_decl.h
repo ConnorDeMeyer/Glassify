@@ -2,6 +2,7 @@
 
 #include <string_view>
 #include <cstdint>
+#include <unordered_map>
 
 namespace glas
 {
@@ -222,6 +223,8 @@ namespace glas
 
 	template <typename T>
 	const TypeInfo& GetTypeInfo();
+
+	const std::unordered_map<TypeId, TypeInfo>& GetAllTypeInfo();
 
 	template <typename T>
 	struct AutoRegisterType

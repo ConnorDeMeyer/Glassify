@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cassert>
 
+#include <vector>
 #include <array>
 #include <set>
 #include <unordered_set>

@@ -7,11 +7,6 @@
 #include "glas_decl.h"
 
 #define GLAS_SERIALIZATION
-#ifdef GLAS_SERIALIZATION
-#define GLAS_SERIALIZE_FILL(info) Serialization::FillInfo<T>(info);
-#else 
-#define GLAS_SERIALIZE_FILL(info) (void)info;
-#endif // GLAS_SERIALIZATION
 
 
 
@@ -59,7 +54,9 @@ namespace glas
 			info.Align = alignof(T);
 		}
 
-		GLAS_SERIALIZE_FILL(info);
+#ifdef GLAS_SERIALIZATION
+		Serialization::FillInfo<T>(info);
+#endif // GLAS_SERIALIZATION
 
 		return info;
 	}
