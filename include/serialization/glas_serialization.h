@@ -114,7 +114,7 @@ namespace glas::Serialization
 
 	inline void DeserializeType(std::istream& stream, void* data, TypeId type)
 	{
-		auto& info = GetTypeInfo(id);
+		auto& info = GetTypeInfo(type);
 
 		if (info.Deserializer)
 		{
@@ -155,7 +155,7 @@ namespace glas::Serialization
 
 	inline void DeserializeTypeBinary(std::istream& stream, void* data, TypeId type)
 	{
-		auto& info = GetTypeInfo(id);
+		auto& info = GetTypeInfo(type);
 
 		if (info.BinaryDeserializer)
 		{
