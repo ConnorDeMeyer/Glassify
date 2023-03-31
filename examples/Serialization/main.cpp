@@ -11,21 +11,21 @@ struct alignas(16) Vector
 	float X{}, Y{}, Z{};
 };
 
-REGISTER_TYPE(Vector);
+GLAS_TYPE(Vector);
 
-REGISTER_MEMBER(Vector, X);
-REGISTER_MEMBER(Vector, Y);
-REGISTER_MEMBER(Vector, Z);
+GLAS_MEMBER(Vector, X);
+GLAS_MEMBER(Vector, Y);
+GLAS_MEMBER(Vector, Z);
 
 struct alignas(16) Quaternion
 {
 	float X{}, Y{}, Z{}, W{};
 };
 
-REGISTER_MEMBER(Quaternion, X);
-REGISTER_MEMBER(Quaternion, Y);
-REGISTER_MEMBER(Quaternion, Z);
-REGISTER_MEMBER(Quaternion, W);
+GLAS_MEMBER(Quaternion, X);
+GLAS_MEMBER(Quaternion, Y);
+GLAS_MEMBER(Quaternion, Z);
+GLAS_MEMBER(Quaternion, W);
 
 struct Transform
 {
@@ -35,9 +35,9 @@ struct Transform
 };
 #pragma warning(default:4324)
 
-REGISTER_MEMBER(Transform, Translation);
-REGISTER_MEMBER(Transform, Rotation);
-REGISTER_MEMBER(Transform, Scale);
+GLAS_MEMBER(Transform, Translation);
+GLAS_MEMBER(Transform, Rotation);
+GLAS_MEMBER(Transform, Scale);
 
 class GameObject final
 {
@@ -56,9 +56,9 @@ private:
 
 struct RegisterGameObject final
 {
-	REGISTER_MEMBER(GameObject, Name);
-	REGISTER_MEMBER(GameObject, Id);
-	REGISTER_MEMBER(GameObject, Transform);
+	GLAS_MEMBER(GameObject, Name);
+	GLAS_MEMBER(GameObject, Id);
+	GLAS_MEMBER(GameObject, Transform);
 };
 
 class Scene final
@@ -77,9 +77,9 @@ private:
 
 struct RegisterScene final
 {
-	REGISTER_MEMBER(Scene, Name);
-	REGISTER_MEMBER(Scene, Objects);
-	REGISTER_MEMBER(Scene, ObjectsMap);
+	GLAS_MEMBER(Scene, Name);
+	GLAS_MEMBER(Scene, Objects);
+	GLAS_MEMBER(Scene, ObjectsMap);
 };
 
 struct TestClass
@@ -94,14 +94,14 @@ struct TestClass
 	std::forward_list<int> ForList{};
 };
 
-REGISTER_MEMBER(TestClass, Array);
-REGISTER_MEMBER(TestClass, Set);
-REGISTER_MEMBER(TestClass, UnSet);
-REGISTER_MEMBER(TestClass, Map);
-REGISTER_MEMBER(TestClass, UnMap);
-REGISTER_MEMBER(TestClass, Deque);
-REGISTER_MEMBER(TestClass, List);
-REGISTER_MEMBER(TestClass, ForList);
+GLAS_MEMBER(TestClass, Array);
+GLAS_MEMBER(TestClass, Set);
+GLAS_MEMBER(TestClass, UnSet);
+GLAS_MEMBER(TestClass, Map);
+GLAS_MEMBER(TestClass, UnMap);
+GLAS_MEMBER(TestClass, Deque);
+GLAS_MEMBER(TestClass, List);
+GLAS_MEMBER(TestClass, ForList);
 
 int main()
 {

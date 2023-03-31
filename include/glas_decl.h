@@ -256,8 +256,8 @@ namespace glas
 	};
 }
 
-#define _REGISTER_TYPE_INTERNAL(TYPE, VARNAME) glas::AutoRegisterType<TYPE> VARNAME##TYPE {};
-#define REGISTER_TYPE(TYPE) _REGISTER_TYPE_INTERNAL(TYPE, RegisterType_)
+#define _GLAS_TYPE_INTERNAL(TYPE, VARNAME) glas::AutoRegisterType<TYPE> VARNAME##TYPE {};
+#define GLAS_TYPE(TYPE) _GLAS_TYPE_INTERNAL(TYPE, RegisterType_)
 
-#define REGISTER_MEMBER(TYPE, MEMBER) inline static glas::AutoRegisterMember<TYPE> TYPE##MEMBER {glas::TypeId::Create<TYPE>(), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER))};
+#define GLAS_MEMBER(TYPE, MEMBER) inline static glas::AutoRegisterMember<TYPE> TYPE##MEMBER {glas::TypeId::Create<TYPE>(), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER))};
 
