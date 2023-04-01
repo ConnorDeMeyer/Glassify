@@ -16,11 +16,6 @@ namespace glas::Serialization
 			info.Serializer = [](std::ostream& stream, const void* data) { Serialize(stream, *static_cast<const T*>(data)); };
 			info.Deserializer = [](std::istream& stream, void* data) { Deserialize(stream, *static_cast<T*>(data)); };
 		}
-		else if constexpr (Streamable<T>)
-		{
-			info.Serializer = [](std::ostream& stream, const void* data) { stream << *static_cast<const T*>(data); };
-			info.Deserializer = [](std::istream& stream, void* data) { stream >> *static_cast<T*>(data); };
-		}
 		
 		if constexpr (SerializableBinary<T>)
 		{
@@ -704,6 +699,86 @@ namespace glas::Serialization
 	inline void DeserializeBinary(std::istream& stream, std::unordered_multimap<Key, Value>& value)
 	{
 		DeserializeBinaryMapContainer(stream, value);
+	}
+
+	/** OPTIONAL */
+
+	template <typename T>
+	inline void Serialize(std::ostream& stream, const std::optional<T>& value)
+	{
+		stream << value.has_value();
+		if (value.has_value())
+		{
+			stream << ": ";
+			SerializeType(stream, *value);
+		}
+	}
+
+	template <typename T>
+	inline void Deserialize(std::istream& stream, std::optional<T>& value)
+	{
+		bool hasValue{};
+		stream >> hasValue;
+		if (hasValue)
+		{
+			char buffer{};
+			stream >> buffer;
+			assert(buffer == ':');
+
+			value.emplace();
+			DeserializeType(stream, &*value, TypeId::Create<T>());
+		}
+	}
+
+	template <typename T>
+	inline void SerializeBinary(std::ostream& stream, const std::optional<T>& value)
+	{
+		bool hasValue{ value.has_value() };
+		stream.write(reinterpret_cast<const char*>(&hasValue), sizeof(bool));
+		if (hasValue)
+		{
+			SerializeTypeBinary(stream, *value);
+		}
+	}
+
+	template <typename T>
+	inline void DeserializeBinary(std::istream& stream, std::optional<T>& value)
+	{
+		bool hasValue{};
+		stream.read(reinterpret_cast<char*>(&hasValue), sizeof(bool));
+		if (hasValue)
+		{
+			value.emplace();
+			DeserializeTypeBinary(stream, &*value, TypeId::Create<T>());
+		}
+	}
+
+	/** FUNDAMENTAL TYPES*/
+
+	template <typename T>
+	inline void Serialize(std::ostream& stream, const T& value) requires std::is_fundamental_v<T>
+	{
+		stream << value;
+	}
+
+	template <typename T>
+	inline void Deserialize(std::istream& stream, T& value) requires std::is_fundamental_v<T>
+	{
+		stream >> value;
+	}
+
+	/** TRIVIALLY COPYABLE*/
+
+	template <typename T>
+	inline void SerializeBinary(std::ostream& stream, const T& value) requires std::is_trivially_copyable_v<T>
+	{
+		stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
+	}
+
+	template <typename T>
+	inline void DeserializeBinary(std::istream& stream, T& value) requires std::is_trivially_copyable_v<T>
+	{
+		stream.read(reinterpret_cast<char*>(&value), sizeof(T));
 	}
 
 }

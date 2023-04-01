@@ -13,6 +13,7 @@
 #include <list>
 #include <deque>
 #include <forward_list>
+#include <optional>
 
 namespace glas
 {
@@ -23,6 +24,8 @@ namespace glas::Serialization
 {
 	template <typename T>
 	constexpr void FillInfo(TypeInfo& info);
+
+
 
 	inline void Serialize(std::ostream& stream, const std::string& value);
 	inline void Deserialize(std::istream& stream, std::string& value);
@@ -146,17 +149,26 @@ namespace glas::Serialization
 	template <typename Key, typename Value>
 	inline void DeserializeBinary(std::istream& stream, std::unordered_multimap<Key, Value>& value);
 
+	template <typename T>
+	inline void Serialize(std::ostream& stream, const std::optional<T>& value);
+	template <typename T>
+	inline void Deserialize(std::istream& stream, std::optional<T>& value);
+	template <typename T>
+	inline void SerializeBinary(std::ostream& stream, const std::optional<T>& value);
+	template <typename T>
+	inline void DeserializeBinary(std::istream& stream, std::optional<T>& value);
+
+	template <typename T>
+	inline void Serialize(std::ostream& stream, const T& value) requires std::is_fundamental_v<T>;
+	template <typename T>
+	inline void Deserialize(std::istream& stream, T& value) requires std::is_fundamental_v<T>;
+	
+	template <typename T>
+	inline void SerializeBinary(std::ostream& stream, const T& value) requires std::is_trivially_copyable_v<T>;
+	template <typename T>
+	inline void DeserializeBinary(std::istream& stream, T& value) requires std::is_trivially_copyable_v<T>;
 
 	/** CONCEPTS */
-
-	template <typename T>
-	concept OutStreamable = requires (std::ostream str, T val) { str << val; };
-
-	template <typename T>
-	concept InStreamable = requires (std::istream str, T val) { str >> val; };
-
-	template <typename T>
-	concept Streamable = OutStreamable<T> && InStreamable<T>;
 
 	template <typename T>
 	concept OutSerializable = requires(T t, std::ostream stream) { Serialize(stream, t); };

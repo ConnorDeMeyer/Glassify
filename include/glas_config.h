@@ -14,17 +14,17 @@ namespace glas
 {
 	struct TypeInfo final
 	{
-		std::string_view				Name{ };
-		uint32_t						Size{ };
-		uint32_t						Align{ };
+		std::string_view				Name	{ };
+		uint32_t						Size	{ };
+		uint32_t						Align	{ };
 
-		std::set<MemberInfo>			Members{ };
+		std::set<MemberInfo>			Members	{ };
 
 #ifdef GLAS_SERIALIZATION
-		std::function<void(std::ostream&, const void*)> Serializer{};
-		std::function<void(std::ostream&, const void*)> BinarySerializer{};
-		std::function<void(std::istream&, void*)> Deserializer{};
-		std::function<void(std::istream&, void*)> BinaryDeserializer{};
+		void (*Serializer)			(std::ostream&, const void*)	{ };
+		void (*BinarySerializer)	(std::ostream&, const void*)	{ };
+		void (*Deserializer)		(std::istream&, void*)			{ };
+		void (*BinaryDeserializer)	(std::istream&, void*)			{ };
 #endif // GLAS_SERIALIZATION
 
 
