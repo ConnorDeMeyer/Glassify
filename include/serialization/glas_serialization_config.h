@@ -171,11 +171,22 @@ namespace glas::Serialization
 	void Serialize(std::ostream& stream, const T& value) requires std::is_fundamental_v<T>;
 	template <typename T>
 	void Deserialize(std::istream& stream, T& value) requires std::is_fundamental_v<T>;
-	
+
 	template <typename T>
 	void SerializeBinary(std::ostream& stream, const T& value) requires std::is_trivially_copyable_v<T>;
 	template <typename T>
 	void DeserializeBinary(std::istream& stream, T& value) requires std::is_trivially_copyable_v<T>;
+
+#ifdef GLAS_STORAGE
+}
+#include "../storage/glas_storage_config.h"
+namespace glas::Serialization
+{
+	inline void Serialize(std::ostream& stream, const Storage::TypeStorage& value);
+	inline void Deserialize(std::istream& stream, Storage::TypeStorage& value);
+	inline void SerializeBinary(std::ostream& stream, const Storage::TypeStorage& value);
+	inline void DeserializeBinary(std::istream& stream, Storage::TypeStorage& value);
+#endif
 
 	/** CONCEPTS */
 
@@ -196,4 +207,5 @@ namespace glas::Serialization
 
 	template <typename T>
 	concept SerializableBinary = InSerializableBinary<T> && OutSerializableBinary<T>;
+
 }

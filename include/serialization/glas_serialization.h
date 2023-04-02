@@ -833,5 +833,51 @@ namespace glas::Serialization
 		stream.read(reinterpret_cast<char*>(&value), sizeof(T));
 	}
 
+#ifdef GLAS_STORAGE
+	inline void Serialize(std::ostream& stream, const Storage::TypeStorage& value)
+	{
+		stream << value.GetType().GetId();
+		if (value.GetData())
+		{
+			SerializeType(stream, value.GetData(), value.GetType());
+		}
+	}
+
+	inline void Deserialize(std::istream& stream, Storage::TypeStorage& value)
+	{
+		uint64_t id{};
+		stream >> id;
+		TypeId typeId{ id };
+
+		if (id)
+		{
+			value = Storage::TypeStorage(typeId);
+			DeserializeType(stream, value.GetData(), typeId);
+		}
+	}
+
+	inline void SerializeBinary(std::ostream& stream, const Storage::TypeStorage& value)
+	{
+		TypeId type = value.GetType();
+		stream.write(reinterpret_cast<const char*>(&type), sizeof(TypeId));
+		if (value.GetData())
+		{
+			SerializeTypeBinary(stream, value.GetData(), value.GetType());
+		}
+	}
+
+	inline void DeserializeBinary(std::istream& stream, Storage::TypeStorage& value)
+	{
+		TypeId typeId{ };
+		stream.read(reinterpret_cast<char*>(&typeId), sizeof(TypeId));
+
+		if (typeId.GetId())
+		{
+			value = Storage::TypeStorage(typeId);
+			DeserializeTypeBinary(stream, value.GetData(), typeId);
+		}
+	}
+#endif
+
 }
 
