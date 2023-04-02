@@ -33,140 +33,149 @@ namespace glas::Serialization
 	inline void DeserializeBinary(std::istream& stream, std::string& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::vector<T>& value);
+	void Serialize(std::ostream& stream, const std::vector<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::vector<T>& value);
+	void Deserialize(std::istream& stream, std::vector<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::vector<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::vector<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::vector<T>& value);
+	void DeserializeBinary(std::istream& stream, std::vector<T>& value);
 
 	template <typename T, size_t size>
-	inline void Serialize(std::ostream& stream, const std::array<T, size>& value);
+	void Serialize(std::ostream& stream, const std::array<T, size>& value);
 	template <typename T, size_t size>
-	inline void Deserialize(std::istream& stream, std::array<T, size>& value);
+	void Deserialize(std::istream& stream, std::array<T, size>& value);
 	template <typename T, size_t size>
-	inline void SerializeBinary(std::ostream& stream, const std::array<T, size>& value);
+	void SerializeBinary(std::ostream& stream, const std::array<T, size>& value);
 	template <typename T, size_t size>
-	inline void DeserializeBinary(std::istream& stream, std::array<T, size>& value);
+	void DeserializeBinary(std::istream& stream, std::array<T, size>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::deque<T>& value);
+	void Serialize(std::ostream& stream, const std::deque<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::deque<T>& value);
+	void Deserialize(std::istream& stream, std::deque<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::deque<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::deque<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::deque<T>& value);
+	void DeserializeBinary(std::istream& stream, std::deque<T>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::forward_list<T>& value);
+	void Serialize(std::ostream& stream, const std::forward_list<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::forward_list<T>& value);
+	void Deserialize(std::istream& stream, std::forward_list<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::forward_list<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::forward_list<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::forward_list<T>& value);
+	void DeserializeBinary(std::istream& stream, std::forward_list<T>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::list<T>& value);
+	void Serialize(std::ostream& stream, const std::list<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::list<T>& value);
+	void Deserialize(std::istream& stream, std::list<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::list<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::list<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::list<T>& value);
+	void DeserializeBinary(std::istream& stream, std::list<T>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::set<T>& value);
+	void Serialize(std::ostream& stream, const std::set<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::set<T>& value);
+	void Deserialize(std::istream& stream, std::set<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::set<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::set<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::set<T>& value);
+	void DeserializeBinary(std::istream& stream, std::set<T>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::multiset<T>& value);
+	void Serialize(std::ostream& stream, const std::multiset<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::multiset<T>& value);
+	void Deserialize(std::istream& stream, std::multiset<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::multiset<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::multiset<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::multiset<T>& value);
+	void DeserializeBinary(std::istream& stream, std::multiset<T>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::unordered_set<T>& value);
+	void Serialize(std::ostream& stream, const std::unordered_set<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::unordered_set<T>& value);
+	void Deserialize(std::istream& stream, std::unordered_set<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::unordered_set<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::unordered_set<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::unordered_set<T>& value);
+	void DeserializeBinary(std::istream& stream, std::unordered_set<T>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::unordered_multiset<T>& value);
+	void Serialize(std::ostream& stream, const std::unordered_multiset<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::unordered_multiset<T>& value);
+	void Deserialize(std::istream& stream, std::unordered_multiset<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::unordered_multiset<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::unordered_multiset<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::unordered_multiset<T>& value);
+	void DeserializeBinary(std::istream& stream, std::unordered_multiset<T>& value);
 
 	template <typename Key, typename Value>
-	inline void Serialize(std::ostream& stream, const std::map<Key, Value>& value);
+	void Serialize(std::ostream& stream, const std::map<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void Deserialize(std::istream& stream, std::map<Key, Value>& value);
+	void Deserialize(std::istream& stream, std::map<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void SerializeBinary(std::ostream& stream, const std::map<Key, Value>& value);
+	void SerializeBinary(std::ostream& stream, const std::map<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void DeserializeBinary(std::istream& stream, std::map<Key, Value>& value);
+	void DeserializeBinary(std::istream& stream, std::map<Key, Value>& value);
 
 	template <typename Key, typename Value>
-	inline void Serialize(std::ostream& stream, const std::multimap<Key, Value>& value);
+	void Serialize(std::ostream& stream, const std::multimap<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void Deserialize(std::istream& stream, std::multimap<Key, Value>& value);
+	void Deserialize(std::istream& stream, std::multimap<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void SerializeBinary(std::ostream& stream, const std::multimap<Key, Value>& value);
+	void SerializeBinary(std::ostream& stream, const std::multimap<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void DeserializeBinary(std::istream& stream, std::multimap<Key, Value>& value);
+	void DeserializeBinary(std::istream& stream, std::multimap<Key, Value>& value);
 
 	template <typename Key, typename Value>
-	inline void Serialize(std::ostream& stream, const std::unordered_map<Key, Value>& value);
+	void Serialize(std::ostream& stream, const std::unordered_map<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void Deserialize(std::istream& stream, std::unordered_map<Key, Value>& value);
+	void Deserialize(std::istream& stream, std::unordered_map<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void SerializeBinary(std::ostream& stream, const std::unordered_map<Key, Value>& value);
+	void SerializeBinary(std::ostream& stream, const std::unordered_map<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void DeserializeBinary(std::istream& stream, std::unordered_map<Key, Value>& value);
+	void DeserializeBinary(std::istream& stream, std::unordered_map<Key, Value>& value);
 
 	template <typename Key, typename Value>
-	inline void Serialize(std::ostream& stream, const std::unordered_multimap<Key, Value>& value);
+	void Serialize(std::ostream& stream, const std::unordered_multimap<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void Deserialize(std::istream& stream, std::unordered_multimap<Key, Value>& value);
+	void Deserialize(std::istream& stream, std::unordered_multimap<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void SerializeBinary(std::ostream& stream, const std::unordered_multimap<Key, Value>& value);
+	void SerializeBinary(std::ostream& stream, const std::unordered_multimap<Key, Value>& value);
 	template <typename Key, typename Value>
-	inline void DeserializeBinary(std::istream& stream, std::unordered_multimap<Key, Value>& value);
+	void DeserializeBinary(std::istream& stream, std::unordered_multimap<Key, Value>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const std::optional<T>& value);
+	void Serialize(std::ostream& stream, const std::unique_ptr<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, std::optional<T>& value);
+	void Deserialize(std::istream& stream, std::unique_ptr<T>& value);
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const std::optional<T>& value);
+	void SerializeBinary(std::ostream& stream, const std::unique_ptr<T>& value);
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, std::optional<T>& value);
+	void DeserializeBinary(std::istream& stream, std::unique_ptr<T>& value);
 
 	template <typename T>
-	inline void Serialize(std::ostream& stream, const T& value) requires std::is_fundamental_v<T>;
+	void Serialize(std::ostream& stream, const std::optional<T>& value);
 	template <typename T>
-	inline void Deserialize(std::istream& stream, T& value) requires std::is_fundamental_v<T>;
+	void Deserialize(std::istream& stream, std::optional<T>& value);
+	template <typename T>
+	void SerializeBinary(std::ostream& stream, const std::optional<T>& value);
+	template <typename T>
+	void DeserializeBinary(std::istream& stream, std::optional<T>& value);
+
+	template <typename T>
+	void Serialize(std::ostream& stream, const T& value) requires std::is_fundamental_v<T>;
+	template <typename T>
+	void Deserialize(std::istream& stream, T& value) requires std::is_fundamental_v<T>;
 	
 	template <typename T>
-	inline void SerializeBinary(std::ostream& stream, const T& value) requires std::is_trivially_copyable_v<T>;
+	void SerializeBinary(std::ostream& stream, const T& value) requires std::is_trivially_copyable_v<T>;
 	template <typename T>
-	inline void DeserializeBinary(std::istream& stream, T& value) requires std::is_trivially_copyable_v<T>;
+	void DeserializeBinary(std::istream& stream, T& value) requires std::is_trivially_copyable_v<T>;
 
 	/** CONCEPTS */
 

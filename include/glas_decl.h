@@ -3,6 +3,7 @@
 #include <string_view>
 #include <cstdint>
 #include <unordered_map>
+#include <span>
 
 namespace glas
 {
@@ -58,17 +59,9 @@ namespace glas
 		return wrapped_name.substr(prefix_length, type_name_length);
 	}
 
-	constexpr uint64_t hash(std::string_view str)
-	{
-		std::uint64_t hash_value = 0xcbf29ce484222325ULL;
-		constexpr std::uint64_t prime = 0x100000001b3ULL;
-		for (char c : str)
-		{
-			hash_value ^= static_cast<std::uint64_t>(c);
-			hash_value *= prime;
-		}
-		return hash_value;
-	}
+	constexpr uint64_t hash(std::string_view str);
+	
+	constexpr uint64_t hash(std::span<const uint64_t> span);
 
 	template <typename Type>
 	constexpr uint64_t TypeHash()
@@ -93,11 +86,11 @@ namespace glas
 
 	template <typename T> struct remove_all_pointers<T*>
 	{
-		using Type = remove_all_pointers<T>::Type;
+		using Type = typename remove_all_pointers<T>::Type;
 	};
 
 	template <typename T>
-	using remove_all_pointers_t = remove_all_pointers<T>::Type;
+	using remove_all_pointers_t = typename remove_all_pointers<T>::Type;
 
 	template <typename T> struct strip_type
 	{
@@ -105,30 +98,29 @@ namespace glas
 	};
 
 	template <typename T>
-	using strip_type_t = strip_type<T>::Type;
+	using strip_type_t = typename strip_type<T>::Type;
 
 	struct TypeInfo;
 	class TypeId;
 	class VariableId;
 	struct MemberInfo;
 
+	/** TYPE REFLECTION*/
+
 	class TypeId final
 	{
 	public:
 		constexpr TypeId() = default;
-		constexpr TypeId(uint64_t id) : ID{ id } {};
+		constexpr TypeId(uint64_t id) : ID{ id } {}
 
 	public:
 		template <typename T>
-		static constexpr TypeId Create()
-		{
-			AutoRegisterTypeOnce<T>();
-			return TypeId(TypeHash<strip_type_t<T>>());
-		}
+		static constexpr TypeId Create();
 
 	public:
 		constexpr void			SetTypeId			(uint64_t typeId)	{ ID = typeId; }
-		constexpr uint64_t		GetId				()	const			{ return ID; }
+		constexpr uint64_t		GetId				() const			{ return ID; }
+		const TypeInfo&			GetInfo				() const;
 
 	private:
 		uint64_t ID{};
@@ -145,7 +137,7 @@ namespace glas
 
 	public:
 
-		constexpr explicit VariableId(TypeId id) : Type{ id } {};
+		constexpr explicit VariableId(TypeId id) : Type{ id } {}
 		constexpr VariableId() = default;
 
 		template <typename T>
@@ -182,8 +174,8 @@ namespace glas
 
 		constexpr uint64_t	GetHash						() const			{ return Type.GetId() ^ ArraySize ^ (static_cast<uint64_t>(PointerAmount) << 32) ^ (static_cast<uint64_t>(TraitFlags) << 40); }
 
-		//constexpr uint32_t GetSize						() const			{ return IsRefOrPointer() ? sizeof(void*) : (GetTypeId().GetTypeSize() * GetArraySize()); }
-		//constexpr uint32_t GetAlign						() const			{ return IsRefOrPointer() ? alignof(void*) : GetTypeId().GetTypeAlignment(); }
+		constexpr uint32_t GetSize						() const;
+		constexpr uint32_t GetAlign						() const;
 
 	private:
 
@@ -201,23 +193,47 @@ namespace glas
 		uint32_t			Size		{ };
 		uint32_t			Align		{ };
 
-		constexpr bool operator<(const MemberInfo& rhs) const
-		{
-			return Offset < rhs.Offset;
-		}
+		constexpr bool operator<(const MemberInfo& rhs) const {	return Offset < rhs.Offset; }
+	};
+
+	struct FunctionInfo final
+	{
+		const void*				FunctionAddress	{ };
+		VariableId				ReturnType		{ };
+		std::string_view		Name			{ };
+		uint64_t				TypesHash		{ };
+		std::vector<VariableId>	ParameterTypes	{ };
+
+		template <typename ReturnT, typename... ParameterTs>
+		auto Cast() const -> ReturnT(*)(ParameterTs...);
+	};
+
+	class FunctionId final
+	{
+		constexpr FunctionId() = default;
+		constexpr FunctionId(uint64_t functionHash) : FunctionHash{ functionHash } {}
+	public:
+		constexpr uint64_t GetId() const { return FunctionHash; }
+		const FunctionInfo& GetInfo() const;
+
+		template <typename ReturnType, typename... ParameterTypes>
+		auto Cast() const -> ReturnType(*)(ParameterTypes...);
+
+		template <typename ReturnType, typename ... ParameterTypes>
+		static FunctionId Create(ReturnType(*function)(ParameterTypes...), std::string_view name);
+
+	private:
+		uint64_t FunctionHash{};
 	};
 
 	template <typename T>
 	const TypeInfo& RegisterType();
 
 	template <typename Class, typename Field>
-	static const MemberInfo& RegisterField(const std::string_view fieldName, uint32_t Offset);
-
-	template <typename Field>
-	static const MemberInfo& RegisterField(TypeId classId, const std::string_view fieldName, uint32_t Offset);
+	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t Offset);
 
 	template <typename Class>
-	static const MemberInfo& RegisterField(TypeId classId, VariableId MemberId, const std::string_view fieldName, uint32_t Offset, uint32_t Size, uint32_t Align);
+	const MemberInfo& RegisterField(VariableId MemberId, std::string_view fieldName, uint32_t Offset, uint32_t Size, uint32_t Align);
 
 	const TypeInfo& GetTypeInfo(TypeId id);
 
@@ -225,6 +241,24 @@ namespace glas
 	const TypeInfo& GetTypeInfo();
 
 	const std::unordered_map<TypeId, TypeInfo>& GetAllTypeInfo();
+
+	template <size_t ArraySize, typename Type, typename... Types>
+	constexpr void FillVariableArray(std::array<VariableId, ArraySize>& VarArray, size_t counter = 0);
+
+	template <typename... Types>
+	constexpr std::array<VariableId, sizeof...(Types)> GetVariableArray();
+
+	template <typename ReturnType, typename ... ParameterTypes>
+	const FunctionInfo& RegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name);
+
+	template <typename... Types>
+	constexpr uint64_t GetTypesHash();
+
+	template <typename ReturnType, typename ... ParameterTypes>
+	uint64_t GetFunctionHash(ReturnType(*function)(ParameterTypes...), std::string_view name);
+
+
+	/** STATIC REGISTRATION*/
 
 	template <typename T>
 	struct AutoRegisterType
@@ -252,9 +286,18 @@ namespace glas
 	template <typename Class>
 	struct AutoRegisterMember
 	{
-		AutoRegisterMember(TypeId classId, VariableId memberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align)
+		AutoRegisterMember(VariableId memberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align)
 		{
-			RegisterField<Class>(classId, memberId, fieldName, offset, size, align);
+			RegisterField<Class>(memberId, fieldName, offset, size, align);
+		}
+	};
+
+	template <typename ReturnType, typename ... ParameterTypes>
+	struct AutoRegisterFunction
+	{
+		AutoRegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name)
+		{
+			RegisterFunction(function, name);
 		}
 	};
 }
@@ -262,5 +305,9 @@ namespace glas
 #define _GLAS_TYPE_INTERNAL(TYPE, VARNAME) glas::AutoRegisterType<TYPE> VARNAME##TYPE {};
 #define GLAS_TYPE(TYPE) _GLAS_TYPE_INTERNAL(TYPE, RegisterType_)
 
-#define GLAS_MEMBER(TYPE, MEMBER) inline static glas::AutoRegisterMember<TYPE> TYPE##MEMBER {glas::TypeId::Create<TYPE>(), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER))};
+#define GLAS_MEMBER(TYPE, MEMBER) inline static glas::AutoRegisterMember<TYPE> TYPE##MEMBER {glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER))};
+
+#define GLAS_FUNCTION(FUNCTION) inline static glas::AutoRegisterFunction RegisterFunction##FUNCTION {FUNCTION, #FUNCTION};
+
+
 
