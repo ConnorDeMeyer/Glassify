@@ -167,6 +167,10 @@ namespace glas::Serialization
 	template <typename T>
 	void DeserializeBinary(std::istream& stream, std::optional<T>& value);
 
+	void Serialize(std::ostream& stream, const float& value);
+	void Serialize(std::ostream& stream, const double& value);
+	void Serialize(std::ostream& stream, const long double& value);
+
 	template <typename T>
 	void Serialize(std::ostream& stream, const T& value) requires std::is_fundamental_v<T>;
 	template <typename T>

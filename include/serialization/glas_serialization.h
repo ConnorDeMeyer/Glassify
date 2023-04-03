@@ -75,6 +75,7 @@ namespace glas::Serialization
 	template <typename T>
 	void SerializeType(std::ostream& stream, const T& data)
 	{
+		stream.exceptions(std::ios::failbit);
 		SerializeType(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
 	}
 
@@ -102,6 +103,7 @@ namespace glas::Serialization
 	template <typename T>
 	void SerializeTypeBinary(std::ostream& stream, const T& data)
 	{
+		stream.exceptions(std::ios::failbit);
 		SerializeTypeBinary(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
 	}
 
@@ -247,9 +249,8 @@ namespace glas::Serialization
 			if (counter++ != 0)
 				stream << ',';
 
-			stream << '\"';
 			SerializeType(stream, key);
-			stream << "\": ";
+			stream << ": ";
 			SerializeType(stream, val);
 		}
 
@@ -282,12 +283,8 @@ namespace glas::Serialization
 
 		while (buffer != '}')
 		{
-			std::string keyVal{};
-			DeserializeType(stream, keyVal);
-			std::stringstream keyStream{ std::move(keyVal) };
-
 			std::remove_const_t<typename Container::key_type> key{};
-			keyStream >> key;
+			DeserializeType(stream, key);
 
 			stream >> buffer;
 			assert(buffer == ':');
@@ -803,6 +800,29 @@ namespace glas::Serialization
 			value.emplace();
 			DeserializeTypeBinary(stream, *value);
 		}
+	}
+
+	/** FLOATING POINTS*/
+
+	void Serialize(std::ostream& stream, const float& value)
+	{
+		if (std::isnan(value) || std::isinf(value))
+			throw std::runtime_error("float value is invalid");
+		stream << value;
+	}
+
+	void Serialize(std::ostream& stream, const double& value)
+	{
+		if (std::isnan(value) || std::isinf(value))
+			throw std::runtime_error("float value is invalid");
+		stream << value;
+	}
+
+	void Serialize(std::ostream& stream, const long double& value)
+	{
+		if (std::isnan(value) || std::isinf(value))
+			throw std::runtime_error("float value is invalid");
+		stream << value;
 	}
 
 	/** FUNDAMENTAL TYPES*/

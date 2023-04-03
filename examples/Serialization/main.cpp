@@ -4,6 +4,10 @@
 #include <sstream>
 #include <random>
 
+#define CATCH_CONFIG_MAIN
+#include "../3rdParty/catch2/catch.hpp"
+
+using namespace glas::Serialization;
 
 #pragma warning(disable:4324) // disable padding warning
 struct alignas(16) Vector
@@ -103,60 +107,60 @@ GLAS_MEMBER(TestClass, Deque);
 GLAS_MEMBER(TestClass, List);
 GLAS_MEMBER(TestClass, ForList);
 
-int main()
-{
-	GameObject object{};
-
-	object.Randomize();
-
-	glas::Serialization::SerializeType(std::cout, object);
-
-	std::stringstream copyStream{};
-	
-	glas::Serialization::SerializeType(copyStream, object);
-	GameObject objectCopy{};
-	glas::Serialization::DeserializeType(copyStream, objectCopy);
-	
-	std::cout << "\n\n";
-	
-	glas::Serialization::SerializeType(std::cout, objectCopy);
-	
-	Scene scene{};
-	scene.GetName() = "Scene01";
-	scene.GetOjects().emplace_back().Randomize();
-	scene.GetOjects().emplace_back().Randomize();
-	scene.GetMap().emplace(0, GameObject{}).first->second.Randomize();
-	scene.GetMap().emplace(1, GameObject{}).first->second.Randomize();
-	scene.GetMap().emplace(2, GameObject{}).first->second.Randomize();
-	
-	std::cout << "\n\n";
-	
-	glas::Serialization::SerializeType(std::cout, scene);
-	
-	std::cout << "\n\n";
-	
-	copyStream.str("");
-	glas::Serialization::SerializeTypeBinary(copyStream, scene);
-	Scene sceneCopy{};
-	glas::Serialization::DeserializeTypeBinary(copyStream, sceneCopy);
-	
-	glas::Serialization::SerializeType(std::cout, sceneCopy);
-	
-	std::cout << "\n\n";
-	
-	TestClass testClass{};
-	testClass.Array = { 1,2,3,4,5,6 };
-	testClass.Deque = { 1,2,3,4,5,6,7,8 };
-	testClass.ForList = { 1,2,3,4,5,6,7,8 };
-	testClass.List = { 1,2,3,4,5,6,7,8 };
-	testClass.Set = { 1,2,3,4,5,6,7,8 };
-	testClass.UnSet = { 1,2,3,4,5,6,7,8 };
-	testClass.Map = { {1,2}, {3,4}, {5,6} };
-	testClass.UnMap = { {1,2}, {3,4}, {5,6} };
-	glas::Serialization::SerializeType(std::cout, testClass);
-	
-	std::cout << "\n\n";
-}
+//int main()
+//{
+//	GameObject object{};
+//
+//	object.Randomize();
+//
+//	glas::Serialization::SerializeType(std::cout, object);
+//
+//	std::stringstream copyStream{};
+//	
+//	glas::Serialization::SerializeType(copyStream, object);
+//	GameObject objectCopy{};
+//	glas::Serialization::DeserializeType(copyStream, objectCopy);
+//	
+//	std::cout << "\n\n";
+//	
+//	glas::Serialization::SerializeType(std::cout, objectCopy);
+//	
+//	Scene scene{};
+//	scene.GetName() = "Scene01";
+//	scene.GetOjects().emplace_back().Randomize();
+//	scene.GetOjects().emplace_back().Randomize();
+//	scene.GetMap().emplace(0, GameObject{}).first->second.Randomize();
+//	scene.GetMap().emplace(1, GameObject{}).first->second.Randomize();
+//	scene.GetMap().emplace(2, GameObject{}).first->second.Randomize();
+//	
+//	std::cout << "\n\n";
+//	
+//	glas::Serialization::SerializeType(std::cout, scene);
+//	
+//	std::cout << "\n\n";
+//	
+//	copyStream.str("");
+//	glas::Serialization::SerializeTypeBinary(copyStream, scene);
+//	Scene sceneCopy{};
+//	glas::Serialization::DeserializeTypeBinary(copyStream, sceneCopy);
+//	
+//	glas::Serialization::SerializeType(std::cout, sceneCopy);
+//	
+//	std::cout << "\n\n";
+//	
+//	TestClass testClass{};
+//	testClass.Array = { 1,2,3,4,5,6 };
+//	testClass.Deque = { 1,2,3,4,5,6,7,8 };
+//	testClass.ForList = { 1,2,3,4,5,6,7,8 };
+//	testClass.List = { 1,2,3,4,5,6,7,8 };
+//	testClass.Set = { 1,2,3,4,5,6,7,8 };
+//	testClass.UnSet = { 1,2,3,4,5,6,7,8 };
+//	testClass.Map = { {1,2}, {3,4}, {5,6} };
+//	testClass.UnMap = { {1,2}, {3,4}, {5,6} };
+//	glas::Serialization::SerializeType(std::cout, testClass);
+//	
+//	std::cout << "\n\n";
+//}
 
 std::random_device g_RandomDevice;
 std::default_random_engine g_Engine(g_RandomDevice());
@@ -184,5 +188,266 @@ void GameObject::Randomize()
 	for (size_t i{}; i < 10; ++i)
 	{
 		Name += static_cast<char>(charDistribution(g_Engine));
+	}
+}
+
+TEST_CASE("JSon Format", "[JSON]")
+{
+	SECTION("Vector")
+	{
+		Vector vector{};
+		std::stringstream stream{};
+
+		SerializeType(stream, vector);
+		std::string streamString = stream.str();
+
+		REQUIRE(streamString == "{\"X\": 0,\"Y\": 0,\"Z\": 0}");
+
+		vector.X = 5.f;
+		vector.Y = -1.5f;
+		vector.Z = 300.f;
+
+		stream.str("");
+		SerializeType(stream, vector);
+		streamString = stream.str();
+
+		REQUIRE(streamString == "{\"X\": 5,\"Y\": -1.5,\"Z\": 300}");
+	}
+
+	SECTION("std::vector")
+	{
+		{
+			std::vector<int> vector{ 1,2,3,4,5,6 };
+			std::stringstream stream{};
+
+			SerializeType(stream, vector);
+			std::string streamString = stream.str();
+
+			REQUIRE(streamString == "[1,2,3,4,5,6]");
+		}
+		{
+			std::vector<int> vector{ };
+			std::stringstream stream{};
+
+			SerializeType(stream, vector);
+			std::string streamString = stream.str();
+
+			REQUIRE(streamString == "[]");
+		}
+	}
+
+	SECTION("std::map")
+	{
+		{
+			std::map<std::string, std::string> map{{"1", "2"}, {"test space", "-=-=-="}};
+			std::stringstream stream{};
+
+			SerializeType(stream, map);
+			std::string streamString = stream.str();
+
+			REQUIRE(streamString == "{\"1\": \"2\",\"test space\": \"-=-=-=\"}");
+		}
+
+		{
+			std::map<int, std::string> map{ {1, "2"}, {5, "-=-=-="} };
+			std::stringstream stream{};
+
+			SerializeType(stream, map);
+			std::string streamString = stream.str();
+
+			REQUIRE(streamString == "{1: \"2\",5: \"-=-=-=\"}");
+		}
+	}
+}
+
+TEST_CASE("floating point Serialization", "[float]")
+{
+	SECTION("float")
+	{
+		float val{};
+		val = INFINITY;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = -INFINITY;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = NAN;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = -NAN;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+	}
+	SECTION("double")
+	{
+		double val{};
+		val = INFINITY;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = -INFINITY;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = NAN;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = -NAN;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+	}
+	SECTION("long double")
+	{
+		long double val{};
+		val = INFINITY;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = -INFINITY;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = NAN;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+		val = -NAN;
+		REQUIRE_THROWS(SerializeType(std::cout, val));
+	}
+}
+
+TEST_CASE("Vector Serialization", "[Vector]")
+{
+	SECTION("Serialization/Deserialization")
+	{
+		Vector vector{};
+		Vector vector2{};
+		std::stringstream stream{};
+
+		SerializeType(stream, vector);
+		DeserializeType(stream, vector2);
+
+		REQUIRE(vector2.X == vector.X);
+		REQUIRE(vector2.Y == vector.Y);
+		REQUIRE(vector2.Z == vector.Z);
+
+		vector.X = 5.f;
+		vector.Y = -1.5f;
+		vector.Z = 999.99f;
+		
+		stream.str("");
+		SerializeType(stream, vector);
+		DeserializeType(stream, vector2);
+		
+		REQUIRE(vector2.X == vector.X);
+		REQUIRE(vector2.Y == vector.Y);
+		REQUIRE(vector2.Z == vector.Z);
+	}
+
+	SECTION("Binary Serialization/Deserialization")
+	{
+		Vector vector{};
+		Vector vector2{};
+		std::stringstream stream{};
+
+		SerializeTypeBinary(stream, vector);
+		DeserializeTypeBinary(stream, vector2);
+
+		REQUIRE(vector2.X == vector.X);
+		REQUIRE(vector2.Y == vector.Y);
+		REQUIRE(vector2.Z == vector.Z);
+
+		vector.X = 5.f;
+		vector.Y = -1.5f;
+		vector.Z = INFINITY;
+
+		stream.str("");
+		SerializeTypeBinary(stream, vector);
+		DeserializeTypeBinary(stream, vector2);
+
+		REQUIRE(vector2.X == vector.X);
+		REQUIRE(vector2.Y == vector.Y);
+		REQUIRE(vector2.Z == vector.Z);
+	}
+}
+
+TEST_CASE("Transform Serialization", "[Transform]")
+{
+	SECTION("Serialization/Deserialization")
+	{
+		Transform transform{};
+		Transform transform2{};
+		std::stringstream stream{};
+
+		SerializeType(stream, transform);
+		DeserializeType(stream, transform2);
+
+		REQUIRE(transform.Translation.X == transform2.Translation.X);
+		REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+		REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+		REQUIRE(transform.Scale.X == transform2.Scale.X);
+		REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+		REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+		REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+		REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+		REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+		REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+
+		transform.Translation.X = 5.f;
+		transform.Translation.Y = -1.5f;
+		transform.Translation.Z = 999.99f;
+		transform.Scale.X = -500.323f;
+		transform.Scale.Y = -0.f;
+		transform.Scale.Z = 0;
+		transform.Rotation.X = -500.323f;
+		transform.Rotation.Y = -0.f;
+		transform.Rotation.Z = 23.4214f;
+		transform.Rotation.W = 64.513f;
+
+		stream.str("");
+		SerializeType(stream, transform);
+		DeserializeType(stream, transform2);
+
+		REQUIRE(transform.Translation.X == transform2.Translation.X);
+		REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+		REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+		REQUIRE(transform.Scale.X == transform2.Scale.X);
+		REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+		REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+		REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+		REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+		REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+		REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+	}
+
+	SECTION("Binary Serialization/Deserialization")
+	{
+		Transform transform{};
+		Transform transform2{};
+		std::stringstream stream{};
+
+		SerializeTypeBinary(stream, transform);
+		DeserializeTypeBinary(stream, transform2);
+
+		REQUIRE(transform.Translation.X == transform2.Translation.X);
+		REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+		REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+		REQUIRE(transform.Scale.X == transform2.Scale.X);
+		REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+		REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+		REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+		REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+		REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+		REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+
+		transform.Translation.X = 5.f;
+		transform.Translation.Y = -1.5f;
+		transform.Translation.Z = 999.99f;
+		transform.Scale.X = -500.323f;
+		transform.Scale.Y = -0.f;
+		transform.Scale.Z = 0;
+		transform.Rotation.X = -500.323f;
+		transform.Rotation.Y = -0.f;
+		transform.Rotation.Z = 23.4214f;
+		transform.Rotation.W = 64.513f;
+
+		stream.str("");
+		SerializeTypeBinary(stream, transform);
+		DeserializeTypeBinary(stream, transform2);
+
+		REQUIRE(transform.Translation.X == transform2.Translation.X);
+		REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+		REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+		REQUIRE(transform.Scale.X == transform2.Scale.X);
+		REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+		REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+		REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+		REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+		REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+		REQUIRE(transform.Rotation.W == transform2.Rotation.W);
 	}
 }
