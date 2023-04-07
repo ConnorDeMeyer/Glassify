@@ -16,7 +16,7 @@ namespace glas::Serialization
 			info.Serializer = [](std::ostream& stream, const void* data) { Serialize(stream, *static_cast<const T*>(data)); };
 			info.Deserializer = [](std::istream& stream, void* data) { Deserialize(stream, *static_cast<T*>(data)); };
 		}
-		
+
 		if constexpr (SerializableBinary<T>)
 		{
 			info.BinarySerializer = [](std::ostream& stream, const void* data) { SerializeBinary(stream, *static_cast<const T*>(data)); };
@@ -177,8 +177,12 @@ namespace glas::Serialization
 		DeserializeTypeBinary(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
 	}
 
-	/** STRING */
+}
 
+/** STRING */
+#if defined(GLAS_SERIALIZATION_STRING) || defined(_STRING_)
+namespace glas::Serialization
+{
 	inline void Serialize(std::ostream& stream, const std::string& value)
 	{
 		stream << '\"' << value << '\"';
@@ -218,9 +222,13 @@ namespace glas::Serialization
 
 		stream.read(value.data(), size);
 	}
+}
+#endif
 
-	/** CONTAINER HELPERS */
-
+/** CONTAINER HELPERS */
+#pragma region ContainerHelpers
+namespace glas::Serialization
+{
 	template <typename Container>
 	void SerializeContainer(std::ostream& stream, const Container& container)
 	{
@@ -349,9 +357,13 @@ namespace glas::Serialization
 			container.emplace(std::move(key), std::move(value));
 		}
 	}
+}
+#pragma endregion
 
-	/** VECTOR */
-
+/** VECTOR */
+#if defined(GLAS_SERIALIZATION_VECTOR) || defined(_VECTOR_)
+namespace glas::Serialization
+{
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::vector<T>& value)
 	{
@@ -383,9 +395,13 @@ namespace glas::Serialization
 			value.emplace_back(std::move(entry));
 		}
 	}
+}
+#endif
 
-	/** ARRAY */
-
+/** ARRAY */
+#if defined(GLAS_SERIALIZATION_ARRAY) || defined(_ARRAY_)
+namespace glas::Serialization
+{
 	template <typename T, size_t size>
 	void Serialize(std::ostream& stream, const std::array<T, size>& value)
 	{
@@ -424,9 +440,13 @@ namespace glas::Serialization
 			DeserializeTypeBinary(stream, value[i]);
 		}
 	}
+}
+#endif
 
-	/** DEQUE */
-
+/** DEQUE */
+#if defined(GLAS_SERIALIZATION_DEQUE) || defined(_DEQUE_)
+namespace glas::Serialization
+{
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::deque<T>& value)
 	{
@@ -449,9 +469,13 @@ namespace glas::Serialization
 		std::function<void(std::deque<T>&, T&&)> addingFunction = [](std::deque<T>& container, T&& val) { container.emplace_back(std::move(val)); };
 		DeserializeBinaryContainer(stream, value, addingFunction);
 	}
+}
+#endif
 
-	/** FORWARD LIST */
-
+/** FORWARD LIST */
+#if defined(GLAS_SERIALIZATION_FORWARD_LIST) || defined(_FORWARD_LIST_)
+namespace glas::Serialization
+{
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::forward_list<T>& value)
 	{
@@ -480,9 +504,13 @@ namespace glas::Serialization
 		std::function<void(std::forward_list<T>&, T&&)> addingFunction = [](std::forward_list<T>& container, T&& val) { container.emplace_front(std::move(val)); };
 		DeserializeBinaryContainer(stream, value, addingFunction);
 	}
+}
+#endif
 
-	/** LIST */
-
+/** LIST */
+#if defined(GLAS_SERIALIZATION_LIST) || defined(_LIST_)
+namespace glas::Serialization
+{
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::list<T>& value)
 	{
@@ -505,9 +533,14 @@ namespace glas::Serialization
 		std::function<void(std::list<T>&, T&&)> addingFunction = [](std::list<T>& container, T&& val) { container.emplace_back(std::move(val)); };
 		DeserializeBinaryContainer(stream, value, addingFunction);
 	}
+}
+#endif
 
-	/** SET */
-
+/** SET & MULTI SET */
+#if defined(GLAS_SERIALIZATION_SET) || defined(_SET_)
+#include <set>
+namespace glas::Serialization
+{
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::set<T>& value)
 	{
@@ -531,8 +564,6 @@ namespace glas::Serialization
 		DeserializeBinaryContainer(stream, value, addingFunction);
 	}
 
-	/** MULTISET */
-
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::multiset<T>& value)
 	{
@@ -555,9 +586,14 @@ namespace glas::Serialization
 		std::function<void(std::multiset<T>&, T&&)> addingFunction = [](std::multiset<T>& container, T&& val) { container.emplace(std::move(val)); };
 		DeserializeBinaryContainer(stream, value, addingFunction);
 	}
+}
+#endif
 
-	/** UNORDERED SET */
-
+/** UNORDERED SET */
+#if defined(GLAS_SERIALIZATION_UNORDERED_SET) || defined(_UNORDERED_SET_)
+#include <unordered_set>
+namespace glas::Serialization
+{
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::unordered_set<T>& value)
 	{
@@ -581,8 +617,6 @@ namespace glas::Serialization
 		DeserializeBinaryContainer(stream, value, addingFunction);
 	}
 
-	/** UNORDERED MULTISET */
-
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::unordered_multiset<T>& value)
 	{
@@ -605,9 +639,14 @@ namespace glas::Serialization
 		std::function<void(std::unordered_multiset<T>&, T&&)> addingFunction = [](std::unordered_multiset<T>& container, T&& val) { container.emplace(std::move(val)); };
 		DeserializeBinaryContainer(stream, value, addingFunction);
 	}
+}
+#endif
 
-	/** MAP */
-
+/** MAP */
+#if defined(GLAS_SERIALIZATION_MAP) || defined(_MAP_)
+#include <map>
+namespace glas::Serialization
+{
 	template <typename Key, typename Value>
 	void Serialize(std::ostream& stream, const std::map<Key, Value>& value)
 	{
@@ -629,8 +668,6 @@ namespace glas::Serialization
 		DeserializeBinaryMapContainer(stream, value);
 	}
 
-	/** MULTIMAP */
-
 	template <typename Key, typename Value>
 	void Serialize(std::ostream& stream, const std::multimap<Key, Value>& value)
 	{
@@ -651,9 +688,14 @@ namespace glas::Serialization
 	{
 		DeserializeBinaryMapContainer(stream, value);
 	}
+}
+#endif
 
-	/** UNORDERED MAP */
-
+/** UNORDERED MAP */
+#if defined(GLAS_SERIALIZATION_MAP) || defined(_UNORDERED_MAP_)
+#include <unordered_map>
+namespace glas::Serialization
+{
 	template <typename Key, typename Value>
 	void Serialize(std::ostream& stream, const std::unordered_map<Key, Value>& value)
 	{
@@ -675,8 +717,6 @@ namespace glas::Serialization
 		DeserializeBinaryMapContainer(stream, value);
 	}
 
-	/** UNORDERED MULTIMAP */
-
 	template <typename Key, typename Value>
 	void Serialize(std::ostream& stream, const std::unordered_multimap<Key, Value>& value)
 	{
@@ -697,9 +737,14 @@ namespace glas::Serialization
 	{
 		DeserializeBinaryMapContainer(stream, value);
 	}
+}
+#endif
 
-	/** UNIQUE PTR*/
-
+/** MEMORY */
+#if defined(GLAS_SERIALIZATION_MEMORY) || defined(_MEMORY_)
+#include <memory>
+namespace glas::Serialization
+{
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::unique_ptr<T>& value)
 	{
@@ -749,9 +794,14 @@ namespace glas::Serialization
 			DeserializeTypeBinary(stream, *value);
 		}
 	}
+}
+#endif
 
-	/** OPTIONAL */
-
+/** OPTIONAL */
+#if defined(GLAS_SERIALIZATION_OPTIONAL) || defined(_OPTIONAL_)
+#include <optional>
+namespace glas::Serialization
+{
 	template <typename T>
 	void Serialize(std::ostream& stream, const std::optional<T>& value)
 	{
@@ -801,9 +851,137 @@ namespace glas::Serialization
 			DeserializeTypeBinary(stream, *value);
 		}
 	}
+}
+#endif
 
-	/** FLOATING POINTS*/
+/** PAIR */
+#if defined(GLAS_SERIALIZATION_UTILITY) || defined(_UTILITY_)
+namespace glas::Serialization
+{
+	template <typename T1, typename T2>
+	void Serialize(std::ostream& stream, const std::pair<T1, T2>& value)
+	{
+		stream << '{';
+		Serialize(stream, value.first);
+		stream << ',';
+		Serialize(stream, value.second);
+		stream << '}';
+	}
 
+	template <typename T1, typename T2>
+	void Deserialize(std::istream& stream, std::pair<T1, T2>& value)
+	{
+		char buffer{};
+		stream >> buffer;
+		assert(buffer == '{');
+
+		Deserialize(stream, value.first);
+
+		stream >> buffer;
+		assert(buffer == ':');
+
+		Deserialize(stream, value.second);
+
+		stream >> buffer;
+		assert(buffer == '}');
+	}
+
+	template <typename T1, typename T2>
+	void SerializeBinary(std::ostream& stream, const std::pair<T1, T2>& value)
+	{
+		SerializeTypeBinary(stream, value.first);
+		SerializeTypeBinary(stream, value.second);
+	}
+
+	template <typename T1, typename T2>
+	void DeserializeBinary(std::istream& stream, std::pair<T1, T2>& value)
+	{
+		DeserializeTypeBinary(stream, value.first);
+		DeserializeTypeBinary(stream, value.second);
+	}
+
+	template <size_t Index, typename... Ts>
+	void Serialize(std::ostream& stream, const std::tuple<Ts...>& value)
+	{
+		SerializeType(stream, std::get<Index>(value));
+		if constexpr (Index + 1 < sizeof...(Ts))
+		{
+			stream << ',';
+			Serialize<Index + 1, Ts...>(stream, value);
+		}
+	}
+
+	template <typename... Ts>
+	void Serialize(std::ostream& stream, const std::tuple<Ts...>& value)
+	{
+		stream << '{';
+		Serialize<0, Ts...>(stream, value);
+		stream << '}';
+	}
+
+	template <size_t Index, typename... Ts>
+	void Deserialize(std::istream& stream, std::tuple<Ts...>& value)
+	{
+		DeserializeType(stream, std::get<Index>(value));
+		if constexpr (Index + 1 < sizeof...(Ts))
+		{
+			char buffer{};
+			stream >> buffer;
+			assert(buffer == ',');
+
+			Deserialize<Index + 1, Ts...>(stream, value);
+		}
+	}
+
+	template <typename... Ts>
+	void Deserialize(std::istream& stream, std::tuple<Ts...>& value)
+	{
+		char buffer{};
+		stream >> buffer;
+		assert(buffer == '{');
+
+		Deserialize<0, Ts...>(stream, value);
+
+		stream >> buffer;
+		assert(buffer == '}');
+	}
+
+	template <size_t Index, typename... Ts>
+	void SerializeBinary(std::ostream& stream, const std::tuple<Ts...>& value)
+	{
+		SerializeTypeBinary(stream, std::get<Index>(value));
+		if constexpr (Index + 1 < sizeof...(Ts))
+		{
+			SerializeBinary<Index + 1, Ts...>(stream, value);
+		}
+	}
+
+	template <typename... Ts>
+	void SerializeBinary(std::ostream& stream, const std::tuple<Ts...>& value)
+	{
+		SerializeBinary<0, Ts...>(stream, value);
+	}
+
+	template <size_t Index, typename... Ts>
+	void DeserializeBinary(std::istream& stream, std::tuple<Ts...>& value)
+	{
+		DeserializeTypeBinary(stream, std::get<Index>(value));
+		if constexpr (Index + 1 < sizeof...(Ts))
+		{
+			DeserializeBinary<Index + 1, Ts...>(stream, value);
+		}
+	}
+
+	template <typename... Ts>
+	void DeserializeBinary(std::istream& stream, std::tuple<Ts...>& value)
+	{
+		DeserializeBinary<0, Ts...>(stream, value);
+	}
+}
+#endif
+
+namespace glas::Serialization
+{
 	void Serialize(std::ostream& stream, const float& value)
 	{
 		if (std::isnan(value) || std::isinf(value))
@@ -852,8 +1030,11 @@ namespace glas::Serialization
 	{
 		stream.read(reinterpret_cast<char*>(&value), sizeof(T));
 	}
+}
 
 #ifdef GLAS_STORAGE
+namespace glas::Serialization
+{
 	inline void Serialize(std::ostream& stream, const Storage::TypeStorage& value)
 	{
 		stream << value.GetType().GetId();
