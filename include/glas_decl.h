@@ -2,6 +2,7 @@
 
 #include <string_view>
 #include <cstdint>
+#include <functional>
 #include <unordered_map>
 #include <span>
 
@@ -100,10 +101,10 @@ namespace glas
 	template <typename T>
 	using strip_type_t = typename strip_type<T>::Type;
 
-	struct TypeInfo;
-	class TypeId;
-	class VariableId;
-	struct MemberInfo;
+	struct	TypeInfo;
+	class	TypeId;
+	class	VariableId;
+	struct	MemberInfo;
 
 	/** TYPE REFLECTION*/
 
@@ -177,6 +178,10 @@ namespace glas
 		constexpr uint32_t GetSize						() const;
 		constexpr uint32_t GetAlign						() const;
 
+		friend constexpr bool operator==(const VariableId& lhs, const VariableId& rhs);
+		friend std::ostream& operator<<(std::ostream& lhs, const VariableId& rhs);
+		friend std::istream& operator>>(std::istream& lhs, const VariableId& rhs);
+
 	private:
 
 		TypeId		Type			{ };	// The underlying type id
@@ -196,6 +201,11 @@ namespace glas
 		constexpr bool operator<(const MemberInfo& rhs) const {	return Offset < rhs.Offset; }
 	};
 
+	namespace Storage
+	{
+		class TypeTuple;
+	}
+
 	struct FunctionInfo final
 	{
 		const void*				FunctionAddress	{ };
@@ -204,8 +214,12 @@ namespace glas
 		uint64_t				TypesHash		{ };
 		std::vector<VariableId>	ParameterTypes	{ };
 
+		void(*FunctionCaller)(const void* address, const Storage::TypeTuple& typeTuple, void* returnAddress);
+		
 		template <typename ReturnT, typename... ParameterTs>
 		auto Cast() const -> ReturnT(*)(ParameterTs...);
+
+		void Call(const Storage::TypeTuple& typeTuple, void* pReturnValue = nullptr) const;
 	};
 
 	class FunctionId final
@@ -221,6 +235,8 @@ namespace glas
 
 		template <typename ReturnType, typename ... ParameterTypes>
 		static FunctionId Create(ReturnType(*function)(ParameterTypes...), std::string_view name);
+
+		void Call(const Storage::TypeTuple& typeTuple, void* pReturnValue = nullptr) const;
 
 	private:
 		uint64_t FunctionHash{};
@@ -242,9 +258,6 @@ namespace glas
 
 	const std::unordered_map<TypeId, TypeInfo>& GetAllTypeInfo();
 
-	template <size_t ArraySize, typename Type, typename... Types>
-	constexpr void FillVariableArray(std::array<VariableId, ArraySize>& VarArray, size_t counter = 0);
-
 	template <typename... Types>
 	constexpr std::array<VariableId, sizeof...(Types)> GetVariableArray();
 
@@ -256,7 +269,6 @@ namespace glas
 
 	template <typename ReturnType, typename ... ParameterTypes>
 	uint64_t GetFunctionHash(ReturnType(*function)(ParameterTypes...), std::string_view name);
-
 
 	/** STATIC REGISTRATION*/
 

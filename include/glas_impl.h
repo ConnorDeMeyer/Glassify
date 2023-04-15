@@ -80,6 +80,50 @@ namespace glas
 		return lhs.GetId() == rhs.GetId();
 	}
 
+	constexpr bool operator==(const VariableId& lhs, const VariableId& rhs)
+	{
+		return lhs.Type == rhs.Type &&
+			lhs.ArraySize == rhs.ArraySize &&
+			lhs.PointerAmount == rhs.PointerAmount &&
+			lhs.TraitFlags == rhs.TraitFlags;
+	}
+
+	inline std::ostream& operator<<(std::ostream& lhs, TypeId rhs)
+	{
+		lhs << rhs.GetId();
+
+		return lhs;
+	}
+
+	inline std::istream& operator>>(std::istream& lhs, TypeId rhs)
+	{
+		uint64_t idInt{};
+		lhs >> idInt;
+		rhs.SetTypeId(idInt);
+
+		return lhs;
+	}
+
+	inline std::ostream& operator<<(std::ostream& lhs, const VariableId& rhs)
+	{
+		lhs << rhs.Type << ' '
+			<< rhs.ArraySize << ' '
+			<< rhs.PointerAmount << ' '
+			<< rhs.TraitFlags;
+
+		return lhs;
+	}
+
+	inline std::istream& operator>>(std::istream& lhs, const VariableId& rhs)
+	{
+		lhs >> rhs.Type
+			>> rhs.ArraySize
+			>> rhs.PointerAmount
+			>> rhs.TraitFlags;
+
+		return lhs;
+	}
+
 	template <typename T>
 	constexpr TypeId TypeId::Create()
 	{
@@ -138,25 +182,10 @@ namespace glas
 		return GetTypeInfoMap();
 	}
 
-	template <size_t ArraySize, typename Type, typename... Types>
-	constexpr void FillVariableArray(std::array<VariableId, ArraySize>& VarArray, size_t counter)
-	{
-		if constexpr (ArraySize != 0)
-		{
-			VarArray[counter] = VariableId::Create<Type>();
-			if constexpr (sizeof...(Types) != 0)
-			{
-				FillVariableArray<ArraySize, Types...>(VarArray, counter + 1);
-			}
-		}
-	}
-
 	template <typename ... Types>
 	constexpr std::array<VariableId, sizeof...(Types)> GetVariableArray()
 	{
-		std::array<VariableId, sizeof...(Types)> array{};
-		FillVariableArray<sizeof...(Types), Types...>(array);
-		return array;
+		return std::array<VariableId, sizeof...(Types)> {VariableId::Create<Types>()...};
 	}
 
 	template <typename T>
@@ -175,7 +204,6 @@ namespace glas
 			).first->second;
 		}
 		return it->second;
-
 	}
 
 	inline const TypeInfo& TypeId::GetInfo() const
@@ -248,9 +276,21 @@ namespace glas
 			nullptr;
 	}
 
+	inline void FunctionInfo::Call(const Storage::TypeTuple& typeTuple, void* pReturnValue) const
+	{
+		assert(typeTuple.GetVariableIds().size() == ParameterTypes.size());
+		assert(std::equal(ParameterTypes.begin(), ParameterTypes.end(), typeTuple.GetVariableIds().begin()));
+		FunctionCaller(FunctionAddress, typeTuple, pReturnValue);
+	}
+
 	inline const FunctionInfo& FunctionId::GetInfo() const
 	{
 		return GetGlobalFunctionsData().FunctionInfoMap[*this];
+	}
+
+	inline void FunctionId::Call(const Storage::TypeTuple& typeTuple, void* pReturnValue) const
+	{
+		GetInfo().Call(typeTuple, pReturnValue);
 	}
 
 	template <typename ReturnType, typename ... ParameterTypes>
@@ -264,6 +304,14 @@ namespace glas
 	{
 		return FunctionId{ GetFunctionHash(function, name) };
 	}
+
+#ifdef GLAS_STORAGE
+	template <typename ParameterTypesTuple, typename Function, size_t... Index>
+	auto TupleFunctionCall(Function function, const Storage::TypeTuple& tupleTuple, std::index_sequence<Index...>)
+	{
+		return function(tupleTuple.Get<std::tuple_element_t<Index, ParameterTypesTuple>>(Index)...);
+	}
+#endif
 
 	template <typename ReturnType, typename ... ParameterTypes>
 	const FunctionInfo& RegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name)
@@ -289,6 +337,32 @@ namespace glas
 
 			std::copy(parameterTypes.begin(), parameterTypes.end(), info.ParameterTypes.begin());
 		}
+
+#ifdef GLAS_STORAGE
+		info.FunctionCaller = [](const void* address, const Storage::TypeTuple& tupleStorage, void* returnAddress) -> void
+		{
+			if constexpr (std::is_same_v<ReturnType, void>)
+			{
+				TupleFunctionCall<std::tuple<ParameterTypes...>>(
+					reinterpret_cast<decltype(function)>(address),
+					tupleStorage,
+					std::make_index_sequence<sizeof...(ParameterTypes)>());
+			}
+			else
+			{
+				if (returnAddress)
+					*static_cast<ReturnType*>(returnAddress) = TupleFunctionCall<std::tuple<ParameterTypes...>>(
+						reinterpret_cast<decltype(function)>(address),
+						tupleStorage,
+						std::make_index_sequence<sizeof...(ParameterTypes)>());
+				else
+					TupleFunctionCall<std::tuple<ParameterTypes...>>(
+						reinterpret_cast<decltype(function)>(address),
+						tupleStorage,
+						std::make_index_sequence<sizeof...(ParameterTypes)>());
+			}
+		};
+#endif
 
 		globalFunctionData.NameToIdMap.emplace(name, functionId);
 		return globalFunctionData.FunctionInfoMap.emplace(functionId, std::move(info)).first->second;

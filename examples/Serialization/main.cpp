@@ -37,7 +37,6 @@ struct Transform
 	Quaternion Rotation{};
 	Vector Scale{ 1, 1, 1 };
 };
-#pragma warning(default:4324)
 
 GLAS_MEMBER(Transform, Translation);
 GLAS_MEMBER(Transform, Rotation);
@@ -450,4 +449,23 @@ TEST_CASE("Transform Serialization", "[Transform]")
 		REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
 		REQUIRE(transform.Rotation.W == transform2.Rotation.W);
 	}
+}
+
+TEST_CASE("Tuple Serialization", "[Tuple]")
+{
+	SECTION("Binary Serialization/Deserialization")
+	{
+		std::tuple<int, float, double, GameObject> tuple{};
+
+		std::stringstream stream{};
+		SerializeTypeBinary(stream, tuple);
+		std::tuple<int, float, double, GameObject> tupleCopy{};
+		DeserializeTypeBinary(stream, tupleCopy);
+	}
+}
+
+TEST_CASE("Type Tuple Serialization", "[TypeTuple]")
+{
+	glas::Storage::TypeTuple tuple(std::tuple<float, GameObject, int*>{ 5.f, GameObject{}, nullptr });
+	SerializeType(std::cout, tuple);
 }

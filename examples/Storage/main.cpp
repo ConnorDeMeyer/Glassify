@@ -3,6 +3,9 @@
 
 #include "glassify.h"
 
+#define CATCH_CONFIG_MAIN
+#include "../3rdParty/catch2/catch.hpp"
+
 #pragma warning(disable:4324) // disable padding warning
 struct alignas(16) Vector
 {
@@ -43,7 +46,7 @@ public:
 	auto& GetTransform() { return Transform; }
 	auto& GetName() { return Name; }
 	auto& GetId() { return Id; }
-	void Randomize();
+	GameObject& Randomize();
 private:
 	Transform Transform{};
 	std::string Name{ "None" };
@@ -101,27 +104,11 @@ GLAS_MEMBER(TestClass, Deque);
 GLAS_MEMBER(TestClass, List);
 GLAS_MEMBER(TestClass, ForList);
 
-int main()
-{
-	auto scene = glas::Storage::TypeStorage::Construct<Scene>();
-	scene.As<Scene>()->GetOjects().emplace_back().Randomize();
-	glas::Serialization::SerializeType(std::cout, scene);
-
-	std::cout << "\n\n";
-
-	auto sharedScene = glas::Storage::SharedTypeStorage::Construct<Scene>();
-	auto sharedScene2 = sharedScene;
-	auto weakScene = glas::Storage::WeakTypeStorage(sharedScene2);
-
-	sharedScene.As<Scene>()->GetOjects().emplace_back().Randomize();
-	glas::Serialization::SerializeType(std::cout, *weakScene.GetSharedStorage().As<Scene>());
-}
-
 
 std::random_device g_RandomDevice;
 std::default_random_engine g_Engine(g_RandomDevice());
 
-void GameObject::Randomize()
+GameObject& GameObject::Randomize()
 {
 	std::uniform_real_distribution<float> distribution(-100.f, 100.f);
 	Transform.Rotation.X = distribution(g_Engine);
@@ -144,5 +131,94 @@ void GameObject::Randomize()
 	for (size_t i{}; i < 10; ++i)
 	{
 		Name += static_cast<char>(charDistribution(g_Engine));
+	}
+
+	return *this;
+}
+
+using namespace glas::Storage;
+
+TEST_CASE("Type Storage", "[TypeStorage]")
+{
+	auto storage = TypeStorage::CopyConstruct<int>(6);
+	REQUIRE(*storage.As<int>() == 6);
+}
+
+TEST_CASE("Type Tuple", "[TypeTuple]")
+{
+	SECTION("Empty Initialization")
+	{
+		TypeTuple tuple{};
+		REQUIRE(tuple.GetJumpTablePtr() == nullptr);
+		REQUIRE(tuple.GetVariableDataPtr() == nullptr);
+		REQUIRE(tuple.GetVariableIdsPtr() == nullptr);
+	}
+
+	SECTION("TypeTuple::Create empty")
+	{
+		auto tuple = TypeTuple::Create();
+		REQUIRE(tuple.GetJumpTablePtr() == nullptr);
+		REQUIRE(tuple.GetVariableDataPtr() == nullptr);
+		REQUIRE(tuple.GetVariableIdsPtr() == nullptr);
+	}
+
+	SECTION("TypeTuple::Create unsigned int")
+	{
+		auto tuple = TypeTuple::Create<uint32_t>();
+		uint32_t& Int = tuple.Get<uint32_t>(0);
+		Int = 0xdeadbeef;
+		REQUIRE(tuple.Get<uint32_t>(0) == 0xdeadbeef);
+
+	}
+
+	SECTION("TypeTuple::Create GameObject")
+	{
+		auto tuple = TypeTuple::Create<GameObject>();
+		GameObject& pGameObject = tuple.Get<GameObject>(0);
+		//pGameObject->Randomize();
+		pGameObject.GetTransform().Rotation.W = 5.f;
+		REQUIRE(tuple.Get<GameObject>(0).GetTransform().Rotation.W == 5.f);
+	}
+
+	SECTION("TypeTuple::Create complex")
+	{
+		auto tuple = TypeTuple::Create<GameObject, int, double*>();
+
+		auto& gameObject = tuple.Get<GameObject>(0);
+		auto& intRef = tuple.Get<int>(1);
+		
+		intRef = 200;
+		gameObject.Randomize();
+		gameObject.GetTransform().Rotation.X = 5.f;
+
+		REQUIRE(tuple.Get<GameObject>(0).GetTransform().Rotation.X == 5.f);
+		REQUIRE(tuple.Get<int>(1) == 200);
+		REQUIRE(tuple.Get<double*>(2) == nullptr);
+	}
+
+	SECTION("variadic constructor copy")
+	{
+		std::tuple stdTuple{ GameObject{}.Randomize(), int{200}, double{50} };
+		auto tuple = TypeTuple{ stdTuple };
+
+		auto& gameObject = tuple.Get<GameObject>(0);
+		gameObject.GetTransform().Rotation.X = 5.f;
+
+		REQUIRE(tuple.Get<GameObject>(0).GetTransform().Rotation.X == 5.f);
+		REQUIRE(tuple.Get<int>(1) == 200);
+		REQUIRE(tuple.Get<double>(2) == 50);
+	}
+
+	SECTION("variadic constructor move")
+	{
+		std::tuple stdTuple{ GameObject{}.Randomize(), int{200}, double{50} };
+		auto tuple = TypeTuple{ std::move(stdTuple) };
+
+		auto& gameObject = tuple.Get<GameObject>(0);
+		gameObject.GetTransform().Rotation.X = 5.f;
+
+		REQUIRE(tuple.Get<GameObject>(0).GetTransform().Rotation.X == 5.f);
+		REQUIRE(tuple.Get<int>(1) == 200);
+		REQUIRE(tuple.Get<double>(2) == 50);
 	}
 }
