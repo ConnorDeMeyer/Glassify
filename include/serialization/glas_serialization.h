@@ -11,22 +11,10 @@ namespace glas::Serialization
 	template <typename T>
 	constexpr void FillInfo(TypeInfo& info)
 	{
-		if constexpr (Serializable<T>)
-		{
-			info.Serializer = [](std::ostream& stream, const void* data) { Serialize(stream, *static_cast<const T*>(data)); };
-			info.Deserializer = [](std::istream& stream, void* data) { Deserialize(stream, *static_cast<T*>(data)); };
-		}
-
-		if constexpr (SerializableBinary<T>)
-		{
-			info.BinarySerializer = [](std::ostream& stream, const void* data) { SerializeBinary(stream, *static_cast<const T*>(data)); };
-			info.BinaryDeserializer = [](std::istream& stream, void* data) { DeserializeBinary(stream, *static_cast<T*>(data)); };
-		}
-		else if constexpr (std::is_trivially_copyable_v<T>)
-		{
-			info.BinarySerializer = [](std::ostream& stream, const void* data) { stream.write(reinterpret_cast<const char*>(data), sizeof(T)); };
-			info.BinaryDeserializer = [](std::istream& stream, void* data) { stream.read(reinterpret_cast<char*>(data), sizeof(T)); };
-		}
+		info.Serializer = [](std::ostream& stream, const void* data) { Serialize(stream, *static_cast<const T*>(data)); };
+		info.Deserializer = [](std::istream& stream, void* data) { Deserialize(stream, *static_cast<T*>(data)); };
+		info.BinarySerializer = [](std::ostream& stream, const void* data) { SerializeBinary(stream, *static_cast<const T*>(data)); };
+		info.BinaryDeserializer = [](std::istream& stream, void* data) { DeserializeBinary(stream, *static_cast<T*>(data)); };
 	}
 
 	/** HELPER FUNCTIONS */
