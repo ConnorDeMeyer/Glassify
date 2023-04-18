@@ -251,7 +251,7 @@ namespace glas::Serialization
 }
 #endif
 
-/** PAIR */
+/** UTILITY */
 #if defined(GLAS_SERIALIZATION_UTILITY) || defined(_UTILITY_)
 #include <utility>
 namespace glas::Serialization
@@ -293,6 +293,7 @@ namespace glas::Serialization
 	void DeserializeBinary(std::istream& stream, T& value) requires std::is_trivially_copyable_v<T>;
 }
 
+/** STORAGE */
 #ifdef GLAS_STORAGE
 #include "../storage/glas_storage_config.h"
 namespace glas::Serialization
@@ -308,6 +309,25 @@ namespace glas::Serialization
 	inline void DeserializeBinary(std::istream& stream, Storage::TypeTuple& value);
 }
 #endif
+
+
+/** DEFAULT SERIALIZATION */
+namespace glas::Serialization
+{
+	void Serialize(std::ostream& stream, const void* data, TypeId type);
+	void Deserialize(std::istream& stream, void* data, TypeId type);
+	void SerializeBinary(std::ostream& stream, const void* data, TypeId type);
+	void DeserializeBinary(std::istream& stream, void* data, TypeId type);
+
+	template <typename T>
+	void Serialize(std::ostream& stream, const T& value);
+	template <typename T>
+	void Deserialize(std::istream& stream, T& value);
+	template <typename T>
+	void SerializeBinary(std::ostream& stream, const T& value);
+	template <typename T>
+	void DeserializeBinary(std::istream& stream, T& value);
+}
 
 namespace glas::Serialization
 {

@@ -61,141 +61,6 @@ namespace glas::Serialization
 		stream >> buffer;
 		assert(expectedChar == buffer);
 	}
-
-	/** SERIALIZER */
-
-	inline void SerializeType(std::ostream& stream, const void* data, TypeId type)
-	{
-		auto& info = GetTypeInfo(type);
-
-		if (info.Serializer)
-		{
-			info.Serializer(stream, data);
-		}
-		else
-		{
-			stream << '{';
-			int memberOutputCount{};
-
-			auto& members = info.Members;
-			for (auto& member : members)
-			{
-				if (!member.VariableId.IsRefOrPointer())
-				{
-					if (memberOutputCount++ != 0)
-						stream << ',';
-
-					stream << '\"' << member.Name << "\": ";
-					SerializeType(stream, VoidOffset(data, member.Offset), member.VariableId.GetTypeId());
-				}
-			}
-			stream << '}';
-		}
-	}
-
-	template <typename T>
-	void SerializeType(std::ostream& stream, const T& data)
-	{
-		stream.exceptions(std::ios::failbit);
-		SerializeType(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
-	}
-
-	inline void SerializeTypeBinary(std::ostream& stream, const void* data, TypeId type)
-	{
-		auto& info = GetTypeInfo(type);
-
-		if (info.BinarySerializer)
-		{
-			info.BinarySerializer(stream, data);
-		}
-		else
-		{
-			auto& members = info.Members;
-			for (auto& member : members)
-			{
-				if (!member.VariableId.IsRefOrPointer())
-				{
-					SerializeTypeBinary(stream, VoidOffset(data, member.Offset), member.VariableId.GetTypeId());
-				}
-			}
-		}
-	}
-
-	template <typename T>
-	void SerializeTypeBinary(std::ostream& stream, const T& data)
-	{
-		stream.exceptions(std::ios::failbit);
-		SerializeTypeBinary(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
-	}
-
-	/** DESERIALIZER */
-
-	inline void DeserializeType(std::istream& stream, void* data, TypeId type)
-	{
-		auto& info = GetTypeInfo(type);
-
-		if (info.Deserializer)
-		{
-			info.Deserializer(stream, data);
-		}
-		else
-		{
-			std::string MemberName{};
-			MemberName.reserve(64);
-
-			char buffer{};
-			IStreamChar(stream, '{');
-
-			auto& members = info.Members;
-			while (buffer != '}')
-			{
-				Deserialize(stream, MemberName);
-
-				auto member = std::find_if(members.begin(), members.end(), [&MemberName](const MemberInfo& info) {return info.Name == MemberName; });
-				if (member != members.end() && !member->VariableId.IsRefOrPointer())
-				{
-					IStreamChar(stream, ':');
-					DeserializeType(stream, VoidOffset(data, member->Offset), member->VariableId.GetTypeId());
-				}
-
-				stream >> buffer;
-			}
-		}
-	}
-
-	template <typename T>
-	void DeserializeType(std::istream& stream, T& data)
-	{
-		DeserializeType(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
-	}
-
-	inline void DeserializeTypeBinary(std::istream& stream, void* data, TypeId type)
-	{
-		auto& info = GetTypeInfo(type);
-
-		if (info.BinaryDeserializer)
-		{
-			info.BinaryDeserializer(stream, data);
-		}
-		else
-		{
-			auto& members = info.Members;
-			for (auto& member : members)
-			{
-				if (!member.VariableId.IsRefOrPointer())
-				{
-					DeserializeTypeBinary(stream, VoidOffset(data, member.Offset), member.VariableId.GetTypeId());
-				}
-			}
-		}
-	}
-
-	template <typename T>
-	void DeserializeTypeBinary(std::istream& stream, T& data)
-	{
-		DeserializeTypeBinary(stream, &data, TypeId::Create<std::remove_cvref_t<T>>());
-	}
-
 }
 
 /** STRING */
@@ -258,7 +123,7 @@ namespace glas::Serialization
 			if (counter++ != 0)
 				stream << ',';
 
-			SerializeType(stream, val);
+			Serialize(stream, val);
 		}
 
 		stream << ']';
@@ -275,9 +140,9 @@ namespace glas::Serialization
 			if (counter++ != 0)
 				stream << ',';
 
-			SerializeType(stream, key);
+			Serialize(stream, key);
 			stream << ": ";
-			SerializeType(stream, val);
+			Serialize(stream, val);
 		}
 
 		stream << '}';
@@ -292,7 +157,7 @@ namespace glas::Serialization
 		while (buffer != ']')
 		{
 			typename Container::value_type entry{};
-			DeserializeType(stream, entry);
+			Deserialize(stream, entry);
 			addingFunction(container, std::move(entry));
 
 			stream >> buffer;
@@ -308,12 +173,12 @@ namespace glas::Serialization
 		while (buffer != '}')
 		{
 			std::remove_const_t<typename Container::key_type> key{};
-			DeserializeType(stream, key);
+			Deserialize(stream, key);
 
 			stream >> buffer;
 			assert(buffer == ':');
 
-			DeserializeType(stream, container.emplace(std::move(key), std::move(typename Container::value_type::second_type{})).first->second);
+			Deserialize(stream, container.emplace(std::move(key), std::move(typename Container::value_type::second_type{})).first->second);
 
 			stream >> buffer;
 		}
@@ -327,7 +192,7 @@ namespace glas::Serialization
 
 		for (auto& entry : container)
 		{
-			SerializeTypeBinary(stream, entry);
+			SerializeBinary(stream, entry);
 		}
 	}
 
@@ -339,8 +204,8 @@ namespace glas::Serialization
 
 		for (auto& [key, value] : container)
 		{
-			SerializeTypeBinary(stream, key);
-			SerializeTypeBinary(stream, value);
+			SerializeBinary(stream, key);
+			SerializeBinary(stream, value);
 		}
 	}
 
@@ -353,7 +218,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			typename Container::value_type entry{};
-			DeserializeTypeBinary(stream, entry);
+			DeserializeBinary(stream, entry);
 			addingFunction(container, std::move(entry));
 		}
 	}
@@ -368,8 +233,8 @@ namespace glas::Serialization
 		{
 			std::remove_const_t<typename Container::value_type::first_type> key{};
 			typename Container::value_type::second_type value{};
-			DeserializeTypeBinary(stream, key);
-			DeserializeTypeBinary(stream, value);
+			DeserializeBinary(stream, key);
+			DeserializeBinary(stream, value);
 			container.emplace(std::move(key), std::move(value));
 		}
 	}
@@ -407,7 +272,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			T entry{};
-			DeserializeTypeBinary(stream, entry);
+			DeserializeBinary(stream, entry);
 			value.emplace_back(std::move(entry));
 		}
 	}
@@ -432,7 +297,7 @@ namespace glas::Serialization
 		size_t counter{};
 		while (buffer != ']')
 		{
-			DeserializeType(stream, value[counter]);
+			Deserialize(stream, value[counter]);
 
 			stream >> buffer;
 			++counter;
@@ -452,7 +317,7 @@ namespace glas::Serialization
 
 		for (size_t i{}; i < size; ++i)
 		{
-			DeserializeTypeBinary(stream, value[i]);
+			DeserializeBinary(stream, value[i]);
 		}
 	}
 }
@@ -510,7 +375,7 @@ namespace glas::Serialization
 
 		for (auto& entry : value)
 		{
-			SerializeTypeBinary(stream, entry);
+			SerializeBinary(stream, entry);
 		}
 	}
 	template <typename T>
@@ -767,7 +632,7 @@ namespace glas::Serialization
 		if (value)
 		{
 			stream << ": ";
-			SerializeType(stream, *value);
+			Serialize(stream, *value);
 		}
 	}
 
@@ -781,7 +646,7 @@ namespace glas::Serialization
 			IStreamChar(stream, ':');
 
 			value = std::make_unique<T>();
-			DeserializeType(stream, *value);
+			Deserialize(stream, *value);
 		}
 	}
 
@@ -792,7 +657,7 @@ namespace glas::Serialization
 		stream.write(reinterpret_cast<const char*>(&hasValue), sizeof(bool));
 		if (hasValue)
 		{
-			SerializeTypeBinary(stream, *value);
+			SerializeBinary(stream, *value);
 		}
 	}
 
@@ -804,7 +669,7 @@ namespace glas::Serialization
 		if (hasValue)
 		{
 			value = std::make_unique<T>();
-			DeserializeTypeBinary(stream, *value);
+			DeserializeBinary(stream, *value);
 		}
 	}
 }
@@ -822,7 +687,7 @@ namespace glas::Serialization
 		if (value.has_value())
 		{
 			stream << ": ";
-			SerializeType(stream, *value);
+			Serialize(stream, *value);
 		}
 	}
 
@@ -836,7 +701,7 @@ namespace glas::Serialization
 			IStreamChar(stream, ':');
 
 			value.emplace();
-			DeserializeType(stream, *value);
+			Deserialize(stream, *value);
 		}
 	}
 
@@ -847,7 +712,7 @@ namespace glas::Serialization
 		stream.write(reinterpret_cast<const char*>(&hasValue), sizeof(bool));
 		if (hasValue)
 		{
-			SerializeTypeBinary(stream, *value);
+			SerializeBinary(stream, *value);
 		}
 	}
 
@@ -859,7 +724,7 @@ namespace glas::Serialization
 		if (hasValue)
 		{
 			value.emplace();
-			DeserializeTypeBinary(stream, *value);
+			DeserializeBinary(stream, *value);
 		}
 	}
 }
@@ -896,21 +761,21 @@ namespace glas::Serialization
 	template <typename T1, typename T2>
 	void SerializeBinary(std::ostream& stream, const std::pair<T1, T2>& value)
 	{
-		SerializeTypeBinary(stream, value.first);
-		SerializeTypeBinary(stream, value.second);
+		SerializeBinary(stream, value.first);
+		SerializeBinary(stream, value.second);
 	}
 
 	template <typename T1, typename T2>
 	void DeserializeBinary(std::istream& stream, std::pair<T1, T2>& value)
 	{
-		DeserializeTypeBinary(stream, value.first);
-		DeserializeTypeBinary(stream, value.second);
+		DeserializeBinary(stream, value.first);
+		DeserializeBinary(stream, value.second);
 	}
 
 	template <size_t Index, typename... Ts>
 	void Serialize(std::ostream& stream, const std::tuple<Ts...>& value)
 	{
-		SerializeType(stream, std::get<Index>(value));
+		Serialize(stream, std::get<Index>(value));
 		if constexpr (Index + 1 < sizeof...(Ts))
 		{
 			stream << ',';
@@ -929,7 +794,7 @@ namespace glas::Serialization
 	template <size_t Index, typename... Ts>
 	void Deserialize(std::istream& stream, std::tuple<Ts...>& value)
 	{
-		DeserializeType(stream, std::get<Index>(value));
+		Deserialize(stream, std::get<Index>(value));
 		if constexpr (Index + 1 < sizeof...(Ts))
 		{
 			IStreamChar(stream, ',');
@@ -951,7 +816,7 @@ namespace glas::Serialization
 	template <size_t Index, typename... Ts>
 	void SerializeBinary(std::ostream& stream, const std::tuple<Ts...>& value)
 	{
-		SerializeTypeBinary(stream, std::get<Index>(value));
+		SerializeBinary(stream, std::get<Index>(value));
 		if constexpr (Index + 1 < sizeof...(Ts))
 		{
 			SerializeBinary<Index + 1, Ts...>(stream, value);
@@ -967,7 +832,7 @@ namespace glas::Serialization
 	template <size_t Index, typename... Ts>
 	void DeserializeBinary(std::istream& stream, std::tuple<Ts...>& value)
 	{
-		DeserializeTypeBinary(stream, std::get<Index>(value));
+		DeserializeBinary(stream, std::get<Index>(value));
 		if constexpr (Index + 1 < sizeof...(Ts))
 		{
 			DeserializeBinary<Index + 1, Ts...>(stream, value);
@@ -1042,7 +907,7 @@ namespace glas::Serialization
 		stream << value.GetType().GetId();
 		if (value.GetData())
 		{
-			SerializeType(stream, value.GetData(), value.GetType());
+			Serialize(stream, value.GetData(), value.GetType());
 		}
 	}
 
@@ -1055,7 +920,7 @@ namespace glas::Serialization
 		if (id)
 		{
 			value = Storage::TypeStorage(typeId);
-			DeserializeType(stream, value.GetData(), typeId);
+			Deserialize(stream, value.GetData(), typeId);
 		}
 	}
 
@@ -1065,7 +930,7 @@ namespace glas::Serialization
 		stream.write(reinterpret_cast<const char*>(&type), sizeof(TypeId));
 		if (value.GetData())
 		{
-			SerializeTypeBinary(stream, value.GetData(), value.GetType());
+			SerializeBinary(stream, value.GetData(), value.GetType());
 		}
 	}
 
@@ -1077,7 +942,7 @@ namespace glas::Serialization
 		if (typeId.GetId())
 		{
 			value = Storage::TypeStorage(typeId);
-			DeserializeTypeBinary(stream, value.GetData(), typeId);
+			DeserializeBinary(stream, value.GetData(), typeId);
 		}
 	}
 
@@ -1108,7 +973,7 @@ namespace glas::Serialization
 				if (variableStreamed++ != 0)
 					stream << ',';
 
-				SerializeType(stream, value.GetVoid(i), variableIds[i].GetTypeId());
+				Serialize(stream, value.GetVoid(i), variableIds[i].GetTypeId());
 			}
 		}
 
@@ -1151,7 +1016,7 @@ namespace glas::Serialization
 				}
 				parsedVariable = true;
 
-				DeserializeType(stream, value.GetVoid(i), variableIds[i].GetTypeId());
+				Deserialize(stream, value.GetVoid(i), variableIds[i].GetTypeId());
 			}
 		}
 
@@ -1170,7 +1035,7 @@ namespace glas::Serialization
 		{
 			if (!variableIds[i].IsRefOrPointer())
 			{
-				SerializeTypeBinary(stream, value.GetVoid(i), variableIds[i].GetTypeId());
+				SerializeBinary(stream, value.GetVoid(i), variableIds[i].GetTypeId());
 			}
 		}
 	}
@@ -1189,7 +1054,7 @@ namespace glas::Serialization
 		{
 			if (!variables[i].IsRefOrPointer())
 			{
-				DeserializeTypeBinary(stream, value.GetVoid(i), variables[i].GetTypeId());
+				DeserializeBinary(stream, value.GetVoid(i), variables[i].GetTypeId());
 			}
 		}
 	}
@@ -1197,3 +1062,106 @@ namespace glas::Serialization
 
 }
 
+/** DEFAULT SERIALIZATION */
+namespace glas::Serialization
+{
+	void Serialize(std::ostream& stream, const void* data, TypeId type)
+	{
+		auto& info = GetTypeInfo(type);
+
+		stream << '{';
+		int memberOutputCount{};
+
+		auto& members = info.Members;
+		for (auto& member : members)
+		{
+			if (!member.VariableId.IsRefOrPointer())
+			{
+				if (memberOutputCount++ != 0)
+					stream << ',';
+
+				stream << '\"' << member.Name << "\": ";
+				member.VariableId.GetTypeId().GetInfo().Serializer(stream, VoidOffset(data, member.Offset));
+			}
+		}
+		stream << '}';
+	}
+
+	void Deserialize(std::istream& stream, void* data, TypeId type)
+	{
+		auto& info = GetTypeInfo(type);
+
+		std::string MemberName{};
+		MemberName.reserve(64);
+
+		char buffer{};
+		IStreamChar(stream, '{');
+
+		auto& members = info.Members;
+		while (buffer != '}')
+		{
+			Deserialize(stream, MemberName);
+
+			auto member = std::find_if(members.begin(), members.end(), [&MemberName](const MemberInfo& info) {return info.Name == MemberName; });
+			if (member != members.end() && !member->VariableId.IsRefOrPointer())
+			{
+				IStreamChar(stream, ':');
+				member->VariableId.GetTypeId().GetInfo().Deserializer(stream, VoidOffset(data, member->Offset));
+			}
+
+			stream >> buffer;
+		}
+	}
+
+	void SerializeBinary(std::ostream& stream, const void* data, TypeId type)
+	{
+		auto& info = GetTypeInfo(type);
+
+		auto& members = info.Members;
+		for (auto& member : members)
+		{
+			if (!member.VariableId.IsRefOrPointer())
+			{
+				member.VariableId.GetTypeId().GetInfo().BinarySerializer(stream, VoidOffset(data, member.Offset));
+			}
+		}
+	}
+
+	void DeserializeBinary(std::istream& stream, void* data, TypeId type)
+	{
+		auto& info = GetTypeInfo(type);
+
+		auto& members = info.Members;
+		for (auto& member : members)
+		{
+			if (!member.VariableId.IsRefOrPointer())
+			{
+				member.VariableId.GetTypeId().GetInfo().BinaryDeserializer(stream, VoidOffset(data, member.Offset));
+			}
+		}
+	}
+
+	template <typename T>
+	void Serialize(std::ostream& stream, const T& value)
+	{
+		Serialize(stream, &value, TypeId::Create<T>());
+	}
+
+	template <typename T>
+	void Deserialize(std::istream& stream, T& value)
+	{
+		Deserialize(stream, &value, TypeId::Create<T>());
+	}
+
+	template <typename T>
+	void SerializeBinary(std::ostream& stream, const T& value)
+	{
+		SerializeBinary(stream, &value, TypeId::Create<T>());
+	}
+
+	template <typename T>
+	void DeserializeBinary(std::istream& stream, T& value)
+	{
+		DeserializeBinary(stream, &value, TypeId::Create<T>());
+	}
+}
