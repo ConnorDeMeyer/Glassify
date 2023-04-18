@@ -328,27 +328,3 @@ namespace glas::Serialization
 	template <typename T>
 	void DeserializeBinary(std::istream& stream, T& value);
 }
-
-namespace glas::Serialization
-{
-	/** CONCEPTS */
-
-	template <typename T>
-	concept OutSerializable = requires(T t, std::ostream stream) { Serialize(stream, t); };
-
-	template <typename T>
-	concept InSerializable = requires(T t, std::istream stream) { Deserialize(stream, t); };
-
-	template <typename T>
-	concept Serializable = InSerializable<T> && OutSerializable<T>;
-
-	template <typename T>
-	concept InSerializableBinary = requires(T t, std::ostream stream) { SerializeBinary(stream, t); };
-
-	template <typename T>
-	concept OutSerializableBinary = requires(T t, std::istream stream) { DeserializeBinary(stream, t); };
-
-	template <typename T>
-	concept SerializableBinary = InSerializableBinary<T> && OutSerializableBinary<T>;
-
-}
