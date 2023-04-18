@@ -112,17 +112,17 @@ GLAS_MEMBER(TestClass, ForList);
 //
 //	object.Randomize();
 //
-//	glas::Serialization::SerializeType(std::cout, object);
+//	glas::Serialization::Serialize(std::cout, object);
 //
 //	std::stringstream copyStream{};
 //	
-//	glas::Serialization::SerializeType(copyStream, object);
+//	glas::Serialization::Serialize(copyStream, object);
 //	GameObject objectCopy{};
-//	glas::Serialization::DeserializeType(copyStream, objectCopy);
+//	glas::Serialization::Deserialize(copyStream, objectCopy);
 //	
 //	std::cout << "\n\n";
 //	
-//	glas::Serialization::SerializeType(std::cout, objectCopy);
+//	glas::Serialization::Serialize(std::cout, objectCopy);
 //	
 //	Scene scene{};
 //	scene.GetName() = "Scene01";
@@ -134,16 +134,16 @@ GLAS_MEMBER(TestClass, ForList);
 //	
 //	std::cout << "\n\n";
 //	
-//	glas::Serialization::SerializeType(std::cout, scene);
+//	glas::Serialization::Serialize(std::cout, scene);
 //	
 //	std::cout << "\n\n";
 //	
 //	copyStream.str("");
-//	glas::Serialization::SerializeTypeBinary(copyStream, scene);
+//	glas::Serialization::SerializeBinary(copyStream, scene);
 //	Scene sceneCopy{};
-//	glas::Serialization::DeserializeTypeBinary(copyStream, sceneCopy);
+//	glas::Serialization::DeserializeBinary(copyStream, sceneCopy);
 //	
-//	glas::Serialization::SerializeType(std::cout, sceneCopy);
+//	glas::Serialization::Serialize(std::cout, sceneCopy);
 //	
 //	std::cout << "\n\n";
 //	
@@ -156,7 +156,7 @@ GLAS_MEMBER(TestClass, ForList);
 //	testClass.UnSet = { 1,2,3,4,5,6,7,8 };
 //	testClass.Map = { {1,2}, {3,4}, {5,6} };
 //	testClass.UnMap = { {1,2}, {3,4}, {5,6} };
-//	glas::Serialization::SerializeType(std::cout, testClass);
+//	glas::Serialization::Serialize(std::cout, testClass);
 //	
 //	std::cout << "\n\n";
 //}
@@ -197,7 +197,7 @@ TEST_CASE("JSon Format", "[JSON]")
 		Vector vector{};
 		std::stringstream stream{};
 
-		SerializeType(stream, vector);
+		Serialize(stream, vector);
 		std::string streamString = stream.str();
 
 		REQUIRE(streamString == "{\"X\": 0,\"Y\": 0,\"Z\": 0}");
@@ -207,7 +207,7 @@ TEST_CASE("JSon Format", "[JSON]")
 		vector.Z = 300.f;
 
 		stream.str("");
-		SerializeType(stream, vector);
+		Serialize(stream, vector);
 		streamString = stream.str();
 
 		REQUIRE(streamString == "{\"X\": 5,\"Y\": -1.5,\"Z\": 300}");
@@ -219,7 +219,7 @@ TEST_CASE("JSon Format", "[JSON]")
 			std::vector<int> vector{ 1,2,3,4,5,6 };
 			std::stringstream stream{};
 
-			SerializeType(stream, vector);
+			Serialize(stream, vector);
 			std::string streamString = stream.str();
 
 			REQUIRE(streamString == "[1,2,3,4,5,6]");
@@ -228,7 +228,7 @@ TEST_CASE("JSon Format", "[JSON]")
 			std::vector<int> vector{ };
 			std::stringstream stream{};
 
-			SerializeType(stream, vector);
+			Serialize(stream, vector);
 			std::string streamString = stream.str();
 
 			REQUIRE(streamString == "[]");
@@ -241,7 +241,7 @@ TEST_CASE("JSon Format", "[JSON]")
 			std::map<std::string, std::string> map{{"1", "2"}, {"test space", "-=-=-="}};
 			std::stringstream stream{};
 
-			SerializeType(stream, map);
+			Serialize(stream, map);
 			std::string streamString = stream.str();
 
 			REQUIRE(streamString == "{\"1\": \"2\",\"test space\": \"-=-=-=\"}");
@@ -251,7 +251,7 @@ TEST_CASE("JSon Format", "[JSON]")
 			std::map<int, std::string> map{ {1, "2"}, {5, "-=-=-="} };
 			std::stringstream stream{};
 
-			SerializeType(stream, map);
+			Serialize(stream, map);
 			std::string streamString = stream.str();
 
 			REQUIRE(streamString == "{1: \"2\",5: \"-=-=-=\"}");
@@ -265,37 +265,37 @@ TEST_CASE("floating point Serialization", "[float]")
 	{
 		float val{};
 		val = INFINITY;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = -INFINITY;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = NAN;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = -NAN;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 	}
 	SECTION("double")
 	{
 		double val{};
 		val = INFINITY;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = -INFINITY;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = NAN;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = -NAN;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 	}
 	SECTION("long double")
 	{
 		long double val{};
 		val = INFINITY;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = -INFINITY;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = NAN;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 		val = -NAN;
-		REQUIRE_THROWS(SerializeType(std::cout, val));
+		REQUIRE_THROWS(Serialize(std::cout, val));
 	}
 }
 
@@ -307,8 +307,8 @@ TEST_CASE("Vector Serialization", "[Vector]")
 		Vector vector2{};
 		std::stringstream stream{};
 
-		SerializeType(stream, vector);
-		DeserializeType(stream, vector2);
+		Serialize(stream, vector);
+		Deserialize(stream, vector2);
 
 		REQUIRE(vector2.X == vector.X);
 		REQUIRE(vector2.Y == vector.Y);
@@ -319,8 +319,8 @@ TEST_CASE("Vector Serialization", "[Vector]")
 		vector.Z = 999.99f;
 		
 		stream.str("");
-		SerializeType(stream, vector);
-		DeserializeType(stream, vector2);
+		Serialize(stream, vector);
+		Deserialize(stream, vector2);
 		
 		REQUIRE(vector2.X == vector.X);
 		REQUIRE(vector2.Y == vector.Y);
@@ -333,8 +333,8 @@ TEST_CASE("Vector Serialization", "[Vector]")
 		Vector vector2{};
 		std::stringstream stream{};
 
-		SerializeTypeBinary(stream, vector);
-		DeserializeTypeBinary(stream, vector2);
+		SerializeBinary(stream, vector);
+		DeserializeBinary(stream, vector2);
 
 		REQUIRE(vector2.X == vector.X);
 		REQUIRE(vector2.Y == vector.Y);
@@ -345,8 +345,8 @@ TEST_CASE("Vector Serialization", "[Vector]")
 		vector.Z = INFINITY;
 
 		stream.str("");
-		SerializeTypeBinary(stream, vector);
-		DeserializeTypeBinary(stream, vector2);
+		SerializeBinary(stream, vector);
+		DeserializeBinary(stream, vector2);
 
 		REQUIRE(vector2.X == vector.X);
 		REQUIRE(vector2.Y == vector.Y);
@@ -362,8 +362,8 @@ TEST_CASE("Transform Serialization", "[Transform]")
 		Transform transform2{};
 		std::stringstream stream{};
 
-		SerializeType(stream, transform);
-		DeserializeType(stream, transform2);
+		Serialize(stream, transform);
+		Deserialize(stream, transform2);
 
 		REQUIRE(transform.Translation.X == transform2.Translation.X);
 		REQUIRE(transform.Translation.Y == transform2.Translation.Y);
@@ -388,8 +388,8 @@ TEST_CASE("Transform Serialization", "[Transform]")
 		transform.Rotation.W = 64.513f;
 
 		stream.str("");
-		SerializeType(stream, transform);
-		DeserializeType(stream, transform2);
+		Serialize(stream, transform);
+		Deserialize(stream, transform2);
 
 		REQUIRE(transform.Translation.X == transform2.Translation.X);
 		REQUIRE(transform.Translation.Y == transform2.Translation.Y);
@@ -409,8 +409,8 @@ TEST_CASE("Transform Serialization", "[Transform]")
 		Transform transform2{};
 		std::stringstream stream{};
 
-		SerializeTypeBinary(stream, transform);
-		DeserializeTypeBinary(stream, transform2);
+		SerializeBinary(stream, transform);
+		DeserializeBinary(stream, transform2);
 
 		REQUIRE(transform.Translation.X == transform2.Translation.X);
 		REQUIRE(transform.Translation.Y == transform2.Translation.Y);
@@ -435,8 +435,8 @@ TEST_CASE("Transform Serialization", "[Transform]")
 		transform.Rotation.W = 64.513f;
 
 		stream.str("");
-		SerializeTypeBinary(stream, transform);
-		DeserializeTypeBinary(stream, transform2);
+		SerializeBinary(stream, transform);
+		DeserializeBinary(stream, transform2);
 
 		REQUIRE(transform.Translation.X == transform2.Translation.X);
 		REQUIRE(transform.Translation.Y == transform2.Translation.Y);
@@ -458,14 +458,14 @@ TEST_CASE("Tuple Serialization", "[Tuple]")
 		std::tuple<int, float, double, GameObject> tuple{};
 
 		std::stringstream stream{};
-		SerializeTypeBinary(stream, tuple);
+		SerializeBinary(stream, tuple);
 		std::tuple<int, float, double, GameObject> tupleCopy{};
-		DeserializeTypeBinary(stream, tupleCopy);
+		DeserializeBinary(stream, tupleCopy);
 	}
 }
 
 TEST_CASE("Type Tuple Serialization", "[TypeTuple]")
 {
 	glas::Storage::TypeTuple tuple(std::tuple<float, GameObject, int*>{ 5.f, GameObject{}, nullptr });
-	SerializeType(std::cout, tuple);
+	Serialize(std::cout, tuple);
 }
