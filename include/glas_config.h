@@ -12,6 +12,7 @@
 
 #define GLAS_STORAGE
 #define GLAS_SERIALIZATION
+#define GLAS_IMGUI
 
 /**
  * struct holds type information about each type
@@ -39,6 +40,9 @@ namespace glas
 		void (*Deserializer)		(std::istream&, void*)			{ };
 		void (*BinaryDeserializer)	(std::istream&, void*)			{ };
 #endif // GLAS_SERIALIZATION
+#ifdef GLAS_IMGUI
+		bool (*ImGuiRenderer)		(const char*, void*)			{ };
+#endif// GLAS_IMGUI
 
 		/**
 		 * Add custom Type Information variables here
@@ -62,6 +66,9 @@ namespace glas
 #ifdef GLAS_SERIALIZATION
 #include "serialization/glas_serialization_config.h"
 #endif // GLAS_SERIALIZATION
+#ifdef GLAS_IMGUI
+#include "imgui/glas_imgui_config.h"
+#endif// GLAS_IMGUI
 
 /**
  * Type Info Variables Initialization
@@ -87,6 +94,9 @@ namespace glas
 #ifdef GLAS_SERIALIZATION
 		Serialization::FillInfo<T>(info);
 #endif // GLAS_SERIALIZATION
+#ifdef GLAS_IMGUI
+		ImGui::FillInfo<T>(info);
+#endif// GLAS_IMGUI
 
 		/**
 		 * Begin initialization of Custom Information variables here
@@ -110,3 +120,6 @@ namespace glas
 #ifdef GLAS_STORAGE
 #include "storage/glas_storage.h"
 #endif // GLAS_SERIALIZATION
+#ifdef GLAS_IMGUI
+#include "imgui/glas_imgui.h"
+#endif// GLAS_IMGUI
