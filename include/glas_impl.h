@@ -276,6 +276,25 @@ namespace glas
 			nullptr;
 	}
 
+	inline std::string VariableId::ToString() const
+	{
+		std::string name = std::string(Type.GetInfo().Name);
+
+		if (IsVolatile()) name = "volatile " + name;
+		if (IsConst()) name = "const " + name;
+
+		const uint32_t pointerAmount = GetPointerAmount();
+		for (uint32_t i{}; i < pointerAmount; ++i)
+		{
+			name += '*';
+		}
+
+		if (IsRValReference()) name += "&&";
+		else if (IsReference()) name += '&';
+
+		return name;
+	}
+
 	inline void FunctionInfo::Call(const Storage::TypeTuple& typeTuple, void* pReturnValue) const
 	{
 		assert(typeTuple.GetVariableIds().size() == ParameterTypes.size());
