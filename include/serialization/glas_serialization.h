@@ -641,7 +641,7 @@ namespace glas::Serialization
 	template <typename T>
 	void SerializeBinary(std::ostream& stream, const std::unique_ptr<T>& value)
 	{
-		bool hasValue{ value.has_value() };
+		bool hasValue{ value };
 		stream.write(reinterpret_cast<const char*>(&hasValue), sizeof(bool));
 		if (hasValue)
 		{

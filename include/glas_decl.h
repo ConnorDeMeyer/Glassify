@@ -114,6 +114,11 @@ namespace glas
 		constexpr TypeId() = default;
 		constexpr TypeId(uint64_t id) : ID{ id } {}
 
+		constexpr TypeId(const TypeId&)					= default;
+		constexpr TypeId(TypeId&&) noexcept				= default;
+		constexpr TypeId& operator=(const TypeId&)		= default;
+		constexpr TypeId& operator=(TypeId&&) noexcept	= default;
+
 	public:
 		template <typename T>
 		static constexpr TypeId Create();
@@ -181,6 +186,8 @@ namespace glas
 		friend constexpr bool operator==(const VariableId& lhs, const VariableId& rhs);
 		friend std::ostream& operator<<(std::ostream& lhs, const VariableId& rhs);
 		friend std::istream& operator>>(std::istream& lhs, const VariableId& rhs);
+
+		std::string	ToString							() const;
 
 	private:
 
@@ -314,8 +321,10 @@ namespace glas
 	};
 }
 
-#define _GLAS_TYPE_INTERNAL(TYPE, VARNAME) glas::AutoRegisterType<TYPE> VARNAME##TYPE {};
-#define GLAS_TYPE(TYPE) _GLAS_TYPE_INTERNAL(TYPE, RegisterType_)
+#define _CONCAT_(a,b) a ## b
+
+#define _GLAS_TYPE_INTERNAL(TYPE, VARNAME, ID) glas::AutoRegisterType<TYPE> _CONCAT_(VARNAME, ID) {};
+#define GLAS_TYPE(TYPE) _GLAS_TYPE_INTERNAL(TYPE, RegisterType_, __LINE__)
 
 #define GLAS_MEMBER(TYPE, MEMBER) inline static glas::AutoRegisterMember<TYPE> TYPE##MEMBER {glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER))};
 
