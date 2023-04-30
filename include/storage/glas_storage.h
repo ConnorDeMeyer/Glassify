@@ -14,13 +14,13 @@ namespace glas::Storage
 			new (location) T();
 		};
 
-		if constexpr (std::is_copy_constructible_v<T>)
+		if constexpr (EnableCopyConstructor<T>)
 			info.CopyConstructor = [](void* location, void* other)
 		{
 			new (location) T(*static_cast<T*>(other));
 		};
 
-		if constexpr (std::is_move_constructible_v<T>)
+		if constexpr (EnableMoveConstructor<T>)
 			info.MoveConstructor = [](void* location, void* other)
 		{
 			new (location) T(std::move(*static_cast<T*>(other)));
