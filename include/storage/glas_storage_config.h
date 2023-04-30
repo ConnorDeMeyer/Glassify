@@ -11,6 +11,15 @@ namespace glas
 namespace glas::Storage
 {
 	template <typename T>
+	inline constexpr bool EnableCopyConstructor = std::is_copy_constructible_v<T>;
+
+	template <typename T>
+	inline constexpr bool EnableMoveConstructor = std::is_move_constructible_v<T>;
+
+#define GLAS_STORAGE_DISABLE_COPY(TYPE) template <> inline constexpr bool glas::Storage::EnableCopyConstructor<TYPE> = false;
+#define GLAS_STORAGE_DISABLE_MOVE(TYPE) template <> inline constexpr bool glas::Storage::EnableMoveConstructor<TYPE> = false;
+
+	template <typename T>
 	constexpr void FillInfo(TypeInfo& info);
 
 	class TypeStorage final
