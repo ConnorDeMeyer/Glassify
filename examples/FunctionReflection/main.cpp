@@ -11,11 +11,22 @@ int TestFunction1(int integer, float floating)
 	return -1;
 }
 
+struct TestStruct
+{
+	int value{6};
+	void Test(int other)
+	{
+		std::cout << value + other;
+	}
+};
+
+
 GLAS_FUNCTION(TestFunction1);
+GLAS_MEMBER_FUNCTION(TestStruct, Test);
 
 int main()
 {
-	for (auto& test : glas::GetGlobalFunctionsData().FunctionInfoMap)
+	for (auto& test : glas::GetGlobalData().FunctionInfoMap)
 	{
 		std::cout << test.second.Name << '\n';
 		if (auto function = test.second.Cast<int, int, float>())
@@ -29,5 +40,14 @@ int main()
 		}
 	}
 
+	std::cout << '\n';
+
+	for (auto& memberFunctions : glas::GetTypeInfo<TestStruct>().MemberFunctions)
+	{
+		TestStruct struct0{ };
+		auto params = glas::Storage::TypeTuple{ std::tuple<TestStruct, int>(struct0, 5) };
+		memberFunctions.second.Call(params);
+		std::cout << '\n';
+	}
 
 }

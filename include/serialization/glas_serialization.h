@@ -927,7 +927,7 @@ namespace glas::Serialization
 		TypeId typeId{ };
 		stream.read(reinterpret_cast<char*>(&typeId), sizeof(TypeId));
 
-		if (typeId.GetId())
+		if (typeId.IsValid())
 		{
 			value = Storage::TypeStorage(typeId);
 			DeserializeBinary(stream, value.GetData(), typeId);

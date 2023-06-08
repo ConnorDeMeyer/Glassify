@@ -21,23 +21,30 @@ namespace glas
 {
 	struct TypeInfo final
 	{
-		std::string_view				Name	{ };
-		uint32_t						Size	{ };
-		uint32_t						Align	{ };
+		std::string_view								Name				{ };
+		uint32_t										Size				{ };
+		uint32_t										Align				{ };
+		void*											VTable				{ };
 
-		std::set<MemberInfo>			Members	{ };
+		std::vector<MemberInfo>							Members				{ };
+		std::unordered_map<FunctionId, FunctionInfo>	MemberFunctions		{ };
+		std::unordered_map<std::string_view, FunctionId>MemberFunctionNames	{ };
+
+		std::vector<BaseClassInfo>						BaseClasses			{ };
+		std::vector<TypeId>								ChildClasses		{ };
 
 #ifdef GLAS_STORAGE
-		void (*Constructor)			(void*)							{ };
-		void (*MoveConstructor)		(void*, void*)					{ };
-		void (*CopyConstructor)		(void*, void*)					{ };
-		void (*Destructor)			(void*)							{ };
+		void (*Constructor)			(void*)									{ };
+		void (*MoveConstructor)		(void*, void*)							{ };
+		void (*CopyConstructor)		(void*, const void*)					{ };
+		void (*Destructor)			(void*)									{ };
+		void (*Swap)				(void*, void*)							{ };
 #endif // GLASS_STORAGE
 #ifdef GLAS_SERIALIZATION
-		void (*Serializer)			(std::ostream&, const void*)	{ };
-		void (*BinarySerializer)	(std::ostream&, const void*)	{ };
-		void (*Deserializer)		(std::istream&, void*)			{ };
-		void (*BinaryDeserializer)	(std::istream&, void*)			{ };
+		void (*Serializer)			(std::ostream&, const void*)			{ };
+		void (*BinarySerializer)	(std::ostream&, const void*)			{ };
+		void (*Deserializer)		(std::istream&, void*)					{ };
+		void (*BinaryDeserializer)	(std::istream&, void*)					{ };
 #endif // GLAS_SERIALIZATION
 
 		/**
@@ -51,7 +58,7 @@ namespace glas
 		 */
 
 		template <typename T>
-		static constexpr TypeInfo Create();
+		static TypeInfo Create();
 	};
 }
 
@@ -69,8 +76,16 @@ namespace glas
 
 namespace glas
 {
+	template <>
+	TypeInfo TypeInfo::Create<void>()
+	{
+		TypeInfo info{};
+		info.Name = TypeName<void>();
+		return info;
+	}
+
 	template<typename T>
-	inline constexpr TypeInfo TypeInfo::Create()
+	TypeInfo TypeInfo::Create()
 	{
 		TypeInfo info{};
 
@@ -79,6 +94,12 @@ namespace glas
 		{
 			info.Size = sizeof(T);
 			info.Align = alignof(T);
+		}
+
+		if constexpr (std::is_polymorphic_v<T> && std::is_default_constructible_v<T>)
+		{
+			T instance{};
+			info.VTable = *reinterpret_cast<void**>(&instance);
 		}
 
 #ifdef GLAS_STORAGE
