@@ -1,9 +1,27 @@
 ﻿#include "ImGui_GlasDemo.h"
 
+#include <vector>
+
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 
 #include "GLFW/glfw3.h"
+
+#include "glassify.h"
+#include "ImGuiEditor/ImGuiWrappers.h"
+
+struct GlasDemoApplication
+{
+	std::vector<glas::Storage::TypeStorage> GlobalVars;
+};
+
+GLAS_STORAGE_DISABLE_COPY(decltype(GlasDemoApplication::GlobalVars));
+GLAS_STORAGE_DISABLE_COPY(GlasDemoApplication)
+
+GLAS_TYPE(GlasDemoApplication)
+GLAS_MEMBER(GlasDemoApplication, GlobalVars)
+
+GlasDemoApplication g_Application{};
 
 void InitializeImgui(GLFWwindow* window)
 {
@@ -60,6 +78,9 @@ void ShowDockSpace()
 	ImGui::End();
 }
 
+void DrawTypeIds();
+void DrawGlobalVariables();
+
 void DrawImgui()
 {
 	ImGui_ImplOpenGL3_NewFrame();
@@ -68,8 +89,9 @@ void DrawImgui()
 
 	ShowDockSpace();
 
-
-
+	DrawTypeIds();
+	DrawGlobalVariables();
+	ImGui::ShowDemoWindow();
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -84,3 +106,45 @@ void DrawImgui()
 	}
 }
 
+void DrawTypeIds()
+{
+	ImGui::Begin("Type Information", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+	{
+		auto& typeInfos = glas::GetAllTypeInfo();
+
+		for (auto& typeInfo : typeInfos)
+		{
+			ImGui::PushID(static_cast<int32_t>(typeInfo.first.GetId()));
+			std::string nameString = std::string(typeInfo.second.Name);
+			if (ImGui::CollapsingHeader(nameString.c_str()))
+			{
+				ImGui::Text("Size: [%u]", typeInfo.second.Size);
+				ImGui::Text("Alignment: [%u]", typeInfo.second.Align);
+				
+				ImGui::Indent();
+				for (auto& member : typeInfo.second.Members)
+				{
+					std::string memberString = std::string(member.Name);
+					if (ImGui::TreeNode(memberString.c_str()))
+					{
+						ImGui::Text("Offset: [%u]", member.Offset);
+						ImGui::Text("Type: [%s]", member.VariableId.ToString().c_str());
+						ImGui::TreePop();
+					}
+				}
+				ImGui::Unindent();
+			}
+			ImGui::PopID();
+		}
+	}
+	ImGui::End();
+}
+
+void DrawGlobalVariables()
+{
+	ImGui::Begin("Global Variables", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+	{
+		ImGui::GlasAuto("Global Variables", g_Application.GlobalVars);
+	}
+	ImGui::End();
+}

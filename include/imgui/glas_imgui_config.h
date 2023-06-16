@@ -27,6 +27,14 @@ namespace ImGui
 	constexpr void FillInfo(glas::TypeInfo& info);
 }
 
+/** GLAS */
+namespace ImGui
+{
+	inline bool GlasAuto(const char* label, glas::TypeId& type);
+	//inline bool GlasAuto(const char* label, glas::VariableId& type);
+	//inline bool GlasAuto(const char* label, glas::FunctionId& type);
+}
+
 /** STRING */
 #if defined(GLAS_IMGUI_STRING) || defined(_STRING_)
 #include <string>
@@ -55,15 +63,15 @@ namespace ImGui
 }
 #endif
 
-/** ARRAY */
-#if defined(GLAS_IMGUI_ARRAY) || defined(_ARRAY_)
-#include <array>
-namespace ImGui
-{
-	template <typename T, size_t size>
-	bool GlasAuto(const char* label, std::array<T, size>& value);
-}
-#endif
+///** ARRAY */
+//#if defined(GLAS_IMGUI_ARRAY) || defined(_ARRAY_)
+//#include <array>
+//namespace ImGui
+//{
+//	template <typename T, size_t size>
+//	bool GlasAuto(const char* label, std::array<T, size>& value);
+//}
+//#endif
 
 ///** DEQUE */
 //#if defined(GLAS_IMGUI_DEQUE) || defined(_DEQUE_)
@@ -190,15 +198,15 @@ namespace ImGui
 	bool GlasAuto(const char* label, bool& value);
 }
 
-//#ifdef GLAS_STORAGE
-//#include "../storage/glas_storage_config.h"
-//namespace ImGui
-//{
-//	inline bool GlasAuto(const char* label, glas::Storage::TypeStorage& value);
-//
-//	inline bool GlasAuto(const char* label, glas::Storage::TypeTuple& value);
-//}
-//#endif
+#ifdef GLAS_STORAGE
+#include "../storage/glas_storage_config.h"
+namespace ImGui
+{
+	inline bool GlasAuto(const char* label, glas::Storage::TypeStorage& value);
+
+	inline bool GlasAuto(const char* label, glas::Storage::TypeTuple& value);
+}
+#endif
 
 /** DEFAULT*/
 namespace ImGui

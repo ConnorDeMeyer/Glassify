@@ -66,6 +66,9 @@
     <ClInclude Include="..\..\include\imgui\glas_imgui_config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ImGuiEditor\ImGuiWrappers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\3rdParty\glad\src\glad.c">
@@ -96,6 +99,9 @@
       <Filter>3rdParty</Filter>
     </ClCompile>
     <ClCompile Include="ImGui_GlasDemo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rdParty\imgui\misc\cpp\imgui_stdlib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

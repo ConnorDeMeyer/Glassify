@@ -2,9 +2,12 @@
 
 #include "glas_imgui_config.h"
 #include "../glas_config.h"
+#include "../glas_impl.h"
 
 #include <type_traits>
 #include <imgui.h>
+#include <imgui_internal.h>
+
 
 namespace ImGui
 {
@@ -33,6 +36,35 @@ constexpr bool IsCStringEmpty(const char* str)
 	return str[0] == '\0';
 }
 
+
+/** GLAS */
+namespace ImGui
+{
+	inline bool GlasAuto(const char* label, glas::TypeId& type)
+	{
+		bool returnValue{};
+
+		if (BeginCombo(label, type.GetId() ? std::string(type.GetInfo().Name).c_str() : ""))
+		{
+			auto& typeInfos = glas::GetAllTypeInfo();
+			for (auto& [id, info] : typeInfos)
+			{
+				bool selected{ glas::TypeId{id} == type };
+				if (Selectable(std::string(info.Name).c_str(), &selected) && id != type)
+				{
+					type = id;
+					returnValue = true;
+				}
+			}
+			EndCombo();
+		}
+
+		return returnValue;
+	}
+
+	//inline bool GlasAuto(const char* label, glas::VariableId& type);
+	//inline bool GlasAuto(const char* label, glas::FunctionId& type);
+}
 
 /** STRING */
 #if defined(GLAS_IMGUI_STRING) || defined(_STRING_)
@@ -115,23 +147,50 @@ namespace ImGui
 	template <typename T>
 	bool GlasAuto(const char* label, std::vector<T>& value)
 	{
-		//GlasAutoContainer(stream, value);
-		//ImGui::Begin()
+		bool returnVal{};
+
+		TextUnformatted(label);
+
+		if (Button("+")) value.emplace_back(); SameLine();
+		if (Button("-")) value.pop_back();
+
+		//BeginChild(GetID(&value), {0, 300}, true, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_MenuBar);
+		if (BeginTable(label, 1, ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_SizingStretchProp))
+		{
+			
+			for (auto& element : value)
+			{
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+				PushID(&element);
+				returnVal |= GlasAuto("", element);
+
+				if (&element != &value.back())
+					Separator();
+
+				PopID();
+			}
+
+			EndTable();
+		}
+		//EndChild();
+
+		return returnVal;
 	}
 }
 #endif
 
-/** ARRAY */
-#if defined(GLAS_IMGUI_ARRAY) || defined(_ARRAY_)
-namespace ImGui
-{
-	template <typename T, size_t size>
-	bool GlasAuto(const char* label, std::array<T, size>& value)
-	{
-		//GlasAutoContainer(stream, value);
-	}
-}
-#endif
+///** ARRAY */
+//#if defined(GLAS_IMGUI_ARRAY) || defined(_ARRAY_)
+//namespace ImGui
+//{
+//	template <typename T, size_t size>
+//	bool GlasAuto(const char* /*label*/, std::array<T, size>& /*value*/)
+//	{
+//		//GlasAutoContainer(stream, value);
+//	}
+//}
+//#endif
 
 ///** DEQUE */
 //#if defined(GLAS_IMGUI_DEQUE) || defined(_DEQUE_)
@@ -366,74 +425,93 @@ namespace ImGui
 	}
 }
 
-//#ifdef GLAS_STORAGE
-//namespace ImGui
-//{
-//	inline bool GlasAuto(glas::Storage::TypeStorage& value)
-//	{
-//		stream << value.GetType().GetId();
-//		if (value.GetData())
-//		{
-//			GlasAuto(stream, value.GetData(), value.GetType());
-//		}
-//	}
-//
-//	inline bool GlasAuto(glas::Storage::TypeTuple& value)
-//	{
-//		stream << "{ ";
-//
-//		stream << value.GetSize();
-//
-//		stream << " {";
-//		const auto variableIds = value.GetVariableIds();
-//
-//		for (size_t i{}; i < variableIds.size(); ++i)
-//		{
-//			if (i != 0)
-//				stream << ',';
-//
-//			stream << variableIds[i];
-//		}
-//
-//		stream << " },{";
-//
-//		size_t variableStreamed{};
-//		for (size_t i{}; i < variableIds.size(); ++i)
-//		{
-//			if (!variableIds[i].IsRefOrPointer())
-//			{
-//				if (variableStreamed++ != 0)
-//					stream << ',';
-//
-//				GlasAuto(stream, value.GetVoid(i), variableIds[i].GetTypeId());
-//			}
-//		}
-//
-//		stream << " }}";
-//	}
-//#endif
-//
-//}
+#ifdef GLAS_STORAGE
+namespace ImGui
+{
+	inline bool GlasAuto(const char* label, glas::Storage::TypeStorage& value)
+	{
+		bool returnVal{};
+
+		glas::TypeId type = value.GetType();
+
+		if (GlasAuto("Type", type))
+		{
+			value = glas::Storage::TypeStorage(type);
+		}
+
+		TextUnformatted("Value:");
+
+		Indent();
+
+		if (value.GetData())
+		{
+			returnVal |= type.GetInfo().ImGuiRenderer(label, value.GetData());
+		}
+
+		Unindent();
+
+		return returnVal;
+	}
+
+	//inline bool GlasAuto(const char* label, glas::Storage::TypeTuple& value)
+	//{
+	//	stream << "{ ";
+	//
+	//	stream << value.GetSize();
+	//
+	//	stream << " {";
+	//	const auto variableIds = value.GetVariableIds();
+	//
+	//	for (size_t i{}; i < variableIds.size(); ++i)
+	//	{
+	//		if (i != 0)
+	//			stream << ',';
+	//
+	//		stream << variableIds[i];
+	//	}
+	//
+	//	stream << " },{";
+	//
+	//	size_t variableStreamed{};
+	//	for (size_t i{}; i < variableIds.size(); ++i)
+	//	{
+	//		if (!variableIds[i].IsRefOrPointer())
+	//		{
+	//			if (variableStreamed++ != 0)
+	//				stream << ',';
+	//
+	//			GlasAuto(stream, value.GetVoid(i), variableIds[i].GetTypeId());
+	//		}
+	//	}
+	//
+	//	stream << " }}";
+	//}
+#endif
+
+}
 
 /** DEFAULT*/
 namespace ImGui
 {
 	bool GlasAuto(const char* label, void* data, glas::TypeId type)
 	{
-		ImGui::TextUnformatted(label);
-
-		auto& info = GetTypeInfo(type);
 		bool returnValue{};
+		bool emptyLabel = label[0] == '\0';
 
-		auto& members = info.Members;
-		for (auto& member : members)
+		if (emptyLabel || TreeNode(label))
 		{
-			if (!member.VariableId.IsRefOrPointer())
+			auto& info = GetTypeInfo(type);
+
+			auto& members = info.Members;
+			for (auto& member : members)
 			{
-				returnValue |= member.VariableId.GetTypeId().GetInfo().ImGuiRenderer("", VoidOffset(data, member.Offset));
-				ImGui::SameLine();
-				ImGui::TextUnformatted(member.Name.data(), member.Name.data() + member.Name.size());
+				if (!member.VariableId.IsRefOrPointer())
+				{
+					returnValue |= member.VariableId.GetTypeId().GetInfo().ImGuiRenderer(std::string(member.Name).c_str(), VoidOffset(data, member.Offset));
+				}
 			}
+			if (!emptyLabel)
+				TreePop();
 		}
 
 		return returnValue;
