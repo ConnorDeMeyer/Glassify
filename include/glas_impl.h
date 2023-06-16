@@ -192,6 +192,21 @@ namespace glas
 		return GetTypeInfo(*this);
 	}
 
+	inline const MemberInfo* TypeId::GetMemberInfo(size_t offset) const
+	{
+		auto& members = GetInfo().Members;
+
+		MemberInfo info{};
+		info.Offset = offset;
+
+		auto it = std::lower_bound(members.begin(), members.end(), info);
+		if (it != members.end() && it->Offset == offset)
+		{
+			return &*it;
+		}
+		return nullptr;
+	}
+
 	inline const TypeInfo& GetTypeInfo(TypeId id)
 	{
 		assert(GetTypeInfoMap().contains(id));

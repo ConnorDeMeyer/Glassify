@@ -153,6 +153,8 @@ namespace glas
 		constexpr uint64_t		GetId		()					const	{ return m_ID; }
 		constexpr bool			IsValid		()					const	{ return m_ID; }
 
+		const MemberInfo*		GetMemberInfo(size_t offset)		const;
+
 	private:
 		uint64_t m_ID{};
 	};
