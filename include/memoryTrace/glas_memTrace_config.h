@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cassert>
 #include <stack>
+#include <span>
 #include <vector>
 
 #define GLAS_MEM_TRACE_STRING
@@ -36,11 +37,14 @@ namespace glas::MemTrace
 	{
 		struct MemoryEntry
 		{
-			size_t		LocationOffset	{ };
+			TypeId		OwnerType		{ };
 			const void*	Address			{ };
-			size_t		Size			{ };
-			size_t		Id				{ };
-			size_t		Parent			{ };
+			int32_t		Size			{ };
+			int32_t		Id				{ };
+			int32_t		Parent			{ };
+			int32_t		UserDataOffset	{ -1 };
+
+			constexpr bool IsTop() const { return Parent == -1; }
 
 			bool operator<(const MemoryEntry& other) const
 			{
@@ -55,19 +59,29 @@ namespace glas::MemTrace
 		void Initialize(const T& value);
 		void Initialize(const void* address, size_t size);
 
-		void PushMemoryArea(const void* owner, const void* address, size_t size);
+		template <typename OwningType, typename UserData = void>
+		void PushMemoryArea(const void* address, size_t size, const UserData& data);
+		void PushMemoryArea(TypeId ownerType, const void* address, size_t size, std::span<const uint8_t> userData = {});
 		void PopMemoryArea();
 
-		const MemoryEntry* GetMemoryEntry(const void* address) const;
+		[[nodiscard]] const MemoryEntry* GetMemoryEntry(const void* address) const;
 		const MemoryEntry& GetParent(const MemoryEntry& entry) const;
+
+		[[nodiscard]] size_t AddUserData(const void* data, size_t size);
+
+		const void* GetUserData(size_t offset) const;
+
+		template <typename T>
+		const void* GetMappedAddress(const void* oldAddress, const T& parent);
+		const void* GetMappedAddress(const void* oldAddress, const void* parent);
 
 	private:
 		void Sort();
 
 	private:
 		std::stack<MemoryEntry>			m_Stack		{ };
-		size_t							m_IdCounter	{ };
 		std::vector<MemoryEntry>		m_Nodes		{ };
+		std::vector<uint8_t>			m_UserData	{ };
 	};
 }
 
@@ -77,6 +91,7 @@ namespace glas::MemTrace
 namespace glas::MemTrace
 {
 	inline void TraceMemory(MemoryStack& tracer, const std::string& value);
+	inline const void* GetAddress(const void* userData, const std::string& value);
 }
 #endif
 
@@ -87,6 +102,8 @@ namespace glas::MemTrace
 {
 	template <typename T>
 	void TraceMemory(MemoryStack& tracer, const std::vector<T>& value);
+	template <typename T>
+	const void* GetAddress(const void* userData, const std::vector<T>& value);
 }
 #endif
 
@@ -127,6 +144,8 @@ namespace glas::MemTrace
 {
 	template <typename T>
 	void TraceMemory(MemoryStack& tracer, const std::list<T>& value);
+	template <typename T>
+	const void* GetAddress(const void* userData, const std::list<T>& value);
 }
 #endif
 
@@ -218,12 +237,12 @@ namespace glas::MemTrace
 namespace glas::MemTrace
 {
 	template <typename T>
-	void TraceMemory(MemoryStack& tracer, const T& value) requires std::is_fundamental_v<T>;
-	template <typename T>
-	void Deserialize(std::istream& stream, T& value) requires std::is_fundamental_v<T>;
+	void TraceMemory(MemoryStack& tracer, const T& value) requires std::is_fundamental_v<T>
+	{}
 
 	template <typename T>
-	void TraceMemoryBinary(MemoryStack& tracer, const T& value) requires std::is_trivially_copyable_v<T>;
+	void TraceMemoryBinary(MemoryStack& tracer, const T& value) requires std::is_trivially_copyable_v<T>
+	{}
 }
 
 /** STORAGE */
