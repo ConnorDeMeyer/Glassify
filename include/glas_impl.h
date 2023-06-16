@@ -197,7 +197,7 @@ namespace glas
 		auto& members = GetInfo().Members;
 
 		MemberInfo info{};
-		info.Offset = offset;
+		info.Offset = static_cast<uint32_t>(offset);
 
 		auto it = std::lower_bound(members.begin(), members.end(), info);
 		if (it != members.end() && it->Offset == offset)

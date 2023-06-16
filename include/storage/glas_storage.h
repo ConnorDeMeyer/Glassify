@@ -33,8 +33,11 @@ namespace glas::Storage
 			static_cast<T*>(data)->~T();
 		};
 
-		if constexpr (std::swappable<T>)
-			info.Swap = std::swap<T>;
+		if constexpr (Swappable<T>)
+			info.Swap = [](void* lhs, void* rhs)
+		{
+			std::swap(*static_cast<T*>(lhs), *static_cast<T*>(rhs));
+		};
 	}
 
 	/** HELPER FUNCTIONS */
@@ -578,7 +581,7 @@ namespace glas::Storage
 
 		for (size_t i{}; i < initializer.size(); ++i)
 		{
-			*(*this)[i] = initializer[i];
+			*static_cast<T*>((*this)[i]) = initializer[i];
 		}
 	}
 
@@ -634,13 +637,13 @@ namespace glas::Storage
 		return m_Data.get() + index * m_ElementSize;
 	}
 
-	constexpr const void* TypeVector::operator[](size_t index) const
+	inline const void* TypeVector::operator[](size_t index) const
 	{
 		assert(index < Size());
 		return m_Data.get() + index * m_ElementSize;
 	}
 
-	constexpr void* TypeVector::operator[](size_t index)
+	inline void* TypeVector::operator[](size_t index)
 	{
 		assert(index < Size());
 		return m_Data.get() + index * m_ElementSize;
@@ -775,7 +778,7 @@ namespace glas::Storage
 		SetBuffer(std::move(newBuffer), size);
 	}
 
-	inline void TypeVector::SwapRemove(size_t index)
+	inline void TypeVector::SwapRemove(size_t )
 	{
 
 	}
