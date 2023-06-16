@@ -87,11 +87,11 @@ namespace glas
 
 	template <typename T> struct remove_all_pointers<T*>
 	{
-		using Type = typename remove_all_pointers<T>::m_Type;
+		using Type = typename remove_all_pointers<T>::Type;
 	};
 
 	template <typename T>
-	using remove_all_pointers_t = typename remove_all_pointers<T>::m_Type;
+	using remove_all_pointers_t = typename remove_all_pointers<T>::Type;
 
 	template <typename T> struct strip_type
 	{
@@ -99,7 +99,7 @@ namespace glas
 	};
 
 	template <typename T>
-	using strip_type_t = typename strip_type<T>::m_Type;
+	using strip_type_t = typename strip_type<T>::Type;
 
 	/**
 	 * FORWARD DECLARATIONS

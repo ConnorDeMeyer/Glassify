@@ -11,6 +11,9 @@ namespace glas
 namespace glas::Storage
 {
 	template <typename T>
+	concept Swappable = requires(T & lhs, T & rhs) { std::swap(lhs, rhs); };
+
+	template <typename T>
 	inline constexpr bool EnableCopyConstructor = std::is_copy_constructible_v<T>;
 
 	template <typename T>
@@ -327,14 +330,14 @@ namespace glas::Storage
 
 		void*						At				(size_t index);
 		const void*					At				(size_t index)	const;
-		constexpr void*				operator[]		(size_t index);
-		constexpr const void*		operator[]		(size_t index)	const;
-		constexpr uint8_t*			Data			()						{ return m_Data.get(); }
-		constexpr const uint8_t*	Data			()				const	{ return m_Data.get(); }
-		constexpr void*				Front			()						{ return Data(); }
-		constexpr const void*		Front			()				const	{ return Data(); }
-		constexpr void*				Back			()						{ return Data() + ElementSize() * (Size() - 1); }
-		constexpr const void*		Back			()				const	{ return Data() + ElementSize() * (Size() - 1); }
+		void*						operator[]		(size_t index);
+		const void*					operator[]		(size_t index)	const;
+		uint8_t*					Data			()						{ return m_Data.get(); }
+		const uint8_t*				Data			()				const	{ return m_Data.get(); }
+		void*						Front			()						{ return Data(); }
+		const void*					Front			()				const	{ return Data(); }
+		void*						Back			()						{ return Data() + ElementSize() * (Size() - 1); }
+		const void*					Back			()				const	{ return Data() + ElementSize() * (Size() - 1); }
 
 	public: // Iterators
 
