@@ -231,7 +231,7 @@ namespace glas
 
 		auto& memberInfo = const_cast<TypeInfo&>(RegisterType<Class>());
 
-		return *memberInfo.Members.emplace(std::upper_bound(memberInfo.Members.begin(), memberInfo.Members.end(), info));
+		return *memberInfo.Members.emplace(std::upper_bound(memberInfo.Members.begin(), memberInfo.Members.end(), info), std::move(info));
 	}
 
 	template<typename Class, typename Field>

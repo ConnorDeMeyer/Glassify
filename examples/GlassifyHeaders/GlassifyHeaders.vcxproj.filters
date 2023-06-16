@@ -45,5 +45,8 @@
     <ClInclude Include="..\..\include\memoryTrace\glas_memTrace_config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\include\glas_dependencies.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

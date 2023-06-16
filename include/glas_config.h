@@ -66,20 +66,23 @@ namespace glas
 	};
 }
 
-
 #ifdef GLAS_STORAGE
 #include "storage/glas_storage_config.h"
-#endif // GLASS_STORAGE
+#endif
+
 #ifdef GLAS_SERIALIZATION
 #include "serialization/glas_serialization_config.h"
-#endif // GLAS_SERIALIZATION
+#endif
+
 #ifdef GLAS_IMGUI
 #include "imgui/glas_imgui_config.h"
-#endif// GLAS_IMGUI
+#endif
 
 /**
  * Type Info Variables Initialization
  */
+
+#include "glas_dependencies.h"
 
 namespace glas
 {
@@ -94,6 +97,8 @@ namespace glas
 	template<typename T>
 	TypeInfo TypeInfo::Create()
 	{
+		AddDependency<T> Dependency{};
+
 		TypeInfo info{};
 
 		info.Name = TypeName<T>();
@@ -111,13 +116,15 @@ namespace glas
 
 #ifdef GLAS_STORAGE
 		Storage::FillInfo<T>(info);
-#endif // GLAS_STORAGE
+#endif 
+
 #ifdef GLAS_SERIALIZATION
 		Serialization::FillInfo<T>(info);
-#endif // GLAS_SERIALIZATION
+#endif
+
 #ifdef GLAS_IMGUI
 		ImGui::FillInfo<T>(info);
-#endif// GLAS_IMGUI
+#endif 
 
 		/**
 		 * Begin initialization of Custom Information variables here
