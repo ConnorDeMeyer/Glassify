@@ -306,7 +306,12 @@ namespace glas
 	inline void FunctionInfo::Call(Storage::TypeTuple& typeTuple, void* pReturnValue) const
 	{
 		assert(typeTuple.GetVariableIds().size() == ParameterTypes.size());
-		assert(std::equal(ParameterTypes.begin(), ParameterTypes.end(), typeTuple.GetVariableIds().begin()));
+		assert(std::equal(ParameterTypes.begin(), ParameterTypes.end(), typeTuple.GetVariableIds().begin(), [](const VariableId& lhs, const VariableId& rhs)
+		{
+				return lhs.GetTypeId() == rhs.GetTypeId() &&
+					lhs.GetArraySize() == rhs.GetArraySize() &&
+					lhs.IsConst() == rhs.IsConst();
+		}));
 		FunctionCaller(FunctionAddress, typeTuple, pReturnValue);
 	}
 
@@ -318,7 +323,7 @@ namespace glas
 	template <typename ParameterTypesTuple, typename Function, size_t... Index>
 	auto TupleFunctionCall(Function function, Storage::TypeTuple& typeTuple, std::index_sequence<Index...>)
 	{
-		return function(typeTuple.Get<std::tuple_element_t<Index, ParameterTypesTuple>>(Index)...);
+		return function(typeTuple.Get<std::remove_reference_t<std::tuple_element_t<Index, ParameterTypesTuple>>>(Index)...);
 	}
 
 	template <typename ParameterTypesTuple, typename Class, typename Function, size_t... Index>
@@ -358,6 +363,8 @@ namespace glas
 		{
 			if constexpr (std::is_same_v<ReturnType, void>)
 			{
+				(void)returnAddress;
+
 				TupleFunctionCall<std::tuple<ParameterTypes...>>(
 					reinterpret_cast<decltype(function)>(address),
 					tupleStorage,
