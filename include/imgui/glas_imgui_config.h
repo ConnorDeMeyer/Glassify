@@ -204,7 +204,7 @@ namespace ImGui
 {
 	inline bool GlasAuto(const char* label, glas::Storage::TypeStorage& value);
 
-	inline bool GlasAuto(const char* label, glas::Storage::TypeTuple& value, const char* parameterNames[] = nullptr);
+	inline bool GlasAuto(const char* label, glas::Storage::TypeTuple& value);
 }
 #endif
 

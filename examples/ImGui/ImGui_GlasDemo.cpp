@@ -18,10 +18,6 @@ struct GlasDemoApplication
 GLAS_STORAGE_DISABLE_COPY(decltype(GlasDemoApplication::GlobalVars));
 GLAS_STORAGE_DISABLE_COPY(GlasDemoApplication)
 
-
-
-
-
 GLAS_TYPE(GlasDemoApplication)
 GLAS_MEMBER(GlasDemoApplication, GlobalVars)
 
@@ -84,7 +80,6 @@ void ShowDockSpace()
 
 void DrawTypeIds();
 void DrawGlobalVariables();
-void DrawGlobalFunctions();
 
 void DrawImgui()
 {
@@ -96,8 +91,7 @@ void DrawImgui()
 
 	DrawTypeIds();
 	DrawGlobalVariables();
-	DrawGlobalFunctions();
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -154,75 +148,3 @@ void DrawGlobalVariables()
 	}
 	ImGui::End();
 }
-
-void DrawGlobalFunctions()
-{
-	ImGui::Begin("Global Functions", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-	{
-		ImGui::TextUnformatted("Check Console for outputs");
-
-		static std::unordered_map<glas::FunctionId, glas::Storage::TypeTuple> functionParameters;
-
-		auto& functions = glas::GetGlobalData().FunctionInfoMap;
-
-		for (auto& [functionId, functionInfo] : functions)
-		{
-			ImGui::PushID(static_cast<int>(functionId.GetId()));
-			if (ImGui::CollapsingHeader(functionInfo.Name.data()))
-			{
-				auto it = functionParameters.find(functionId);
-				if (it == functionParameters.end())
-				{
-					it = functionParameters.emplace(functionId, glas::Storage::TypeTuple::CreateNoReferences(functionInfo.ParameterTypes)).first;
-				}
-
-				ImGui::GlasAuto("", it->second);
-
-				if (ImGui::Button("Call"))
-				{
-					glas::Storage::TypeStorage storage{};
-
-					if (functionInfo.ReturnType.GetTypeId().IsValid() &&
-						functionInfo.ReturnType.GetTypeId() != glas::TypeId::Create<void>() &&
-						!functionInfo.ReturnType.IsRefOrPointer())
-					{
-						storage = glas::Storage::TypeStorage(functionInfo.ReturnType.GetTypeId());
-					}
-
-					functionInfo.Call(it->second, storage.GetData());
-
-					if (storage.GetData())
-					{
-						glas::Serialization::Serialize(std::cout, storage.GetData(), storage.GetType());
-						std::cout << '\n';
-					}
-				}
-			}
-			ImGui::PopID();
-
-			ImGui::Separator();
-		}
-	}
-	ImGui::End();
-}
-
-void HelloWorld()
-{
-	std::cout << "Hello World!\n";
-}
-GLAS_FUNCTION(HelloWorld);
-
-void PrintString(const std::string& text)
-{
-	std::cout << text << '\n';
-}
-GLAS_FUNCTION(PrintString);
-
-auto ReturnComplexValue()
-{
-	return std::tuple<int, double, float, bool>{5, 52.12, 12.66f, true};
-}
-GLAS_FUNCTION(ReturnComplexValue);
-
-
-

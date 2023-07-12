@@ -1053,27 +1053,7 @@ namespace glas::Serialization
 /** DEFAULT SERIALIZATION */
 namespace glas::Serialization
 {
-	inline void Serialize(std::ostream& stream, const void* data, TypeId type)
-	{
-		type.GetInfo().Serializer(stream, data);
-	}
-
-	inline void Deserialize(std::istream& stream, void* data, TypeId type)
-	{
-		type.GetInfo().Deserializer(stream, data);
-	}
-
-	inline void SerializeBinary(std::ostream& stream, const void* data, TypeId type)
-	{
-		type.GetInfo().BinarySerializer(stream, data);
-	}
-
-	inline void DeserializeBinary(std::istream& stream, void* data, TypeId type)
-	{
-		type.GetInfo().BinaryDeserializer(stream, data);
-	}
-
-	inline void SerializeDefault(std::ostream& stream, const void* data, TypeId type)
+	void Serialize(std::ostream& stream, const void* data, TypeId type)
 	{
 		auto& info = GetTypeInfo(type);
 
@@ -1095,7 +1075,7 @@ namespace glas::Serialization
 		stream << '}';
 	}
 
-	inline void DeserializeDefault(std::istream& stream, void* data, TypeId type)
+	void Deserialize(std::istream& stream, void* data, TypeId type)
 	{
 		auto& info = GetTypeInfo(type);
 
@@ -1121,7 +1101,7 @@ namespace glas::Serialization
 		}
 	}
 
-	inline void SerializeBinaryDefault(std::ostream& stream, const void* data, TypeId type)
+	void SerializeBinary(std::ostream& stream, const void* data, TypeId type)
 	{
 		auto& info = GetTypeInfo(type);
 
@@ -1135,7 +1115,7 @@ namespace glas::Serialization
 		}
 	}
 
-	inline void DeserializeBinaryDefault(std::istream& stream, void* data, TypeId type)
+	void DeserializeBinary(std::istream& stream, void* data, TypeId type)
 	{
 		auto& info = GetTypeInfo(type);
 
@@ -1152,26 +1132,24 @@ namespace glas::Serialization
 	template <typename T>
 	void Serialize(std::ostream& stream, const T& value)
 	{
-		SerializeDefault(stream, &value, TypeId::Create<T>());
+		Serialize(stream, &value, TypeId::Create<T>());
 	}
 
 	template <typename T>
 	void Deserialize(std::istream& stream, T& value)
 	{
-		DeserializeDefault(stream, &value, TypeId::Create<T>());
+		Deserialize(stream, &value, TypeId::Create<T>());
 	}
 
 	template <typename T>
 	void SerializeBinary(std::ostream& stream, const T& value)
 	{
-		SerializeBinaryDefault(stream, &value, TypeId::Create<T>());
+		SerializeBinary(stream, &value, TypeId::Create<T>());
 	}
 
 	template <typename T>
 	void DeserializeBinary(std::istream& stream, T& value)
 	{
-		DeserializeBinaryDefault(stream, &value, TypeId::Create<T>());
+		DeserializeBinary(stream, &value, TypeId::Create<T>());
 	}
-
-
 }
