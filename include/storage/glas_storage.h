@@ -385,6 +385,27 @@ namespace glas::Storage
 		}
 	}
 
+	template <typename ... T>
+	TypeTuple TypeTuple::CreateNoReferences()
+	{
+		auto variableIds = glas::GetVariableArray<T...>();
+		for (auto& variable : variableIds)
+		{
+			variable.SetReferenceFlag(false);
+		}
+		return TypeTuple(variableIds);
+	}
+
+	inline TypeTuple TypeTuple::CreateNoReferences(std::span<const VariableId> variables)
+	{
+		std::vector<VariableId> variableIds{ variables.begin(), variables.end() };
+		for (auto& variable : variableIds)
+		{
+			variable.RemoveReferenceFlag();
+		}
+		return TypeTuple({ variableIds.begin(), variableIds.end() });
+	}
+
 	inline VariableId TypeTuple::GetVariable(size_t index) const
 	{
 		return GetVariableIds()[index];

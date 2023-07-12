@@ -365,7 +365,7 @@ namespace ImGui
 	{
 		bool returnVal{};
 		ImGui::TextUnformatted(label);
-		ImGui::BeginChild(&value, {}, true, ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::BeginChild(ImGui::GetID(&value), {}, true, ImGuiWindowFlags_AlwaysAutoResize);
 		returnVal |= GlasAuto<0, Ts...>(value);
 		ImGui::EndChild();
 		return returnVal;
@@ -453,39 +453,23 @@ namespace ImGui
 		return returnVal;
 	}
 
-	//inline bool GlasAuto(const char* label, glas::Storage::TypeTuple& value)
-	//{
-	//	stream << "{ ";
-	//
-	//	stream << value.GetSize();
-	//
-	//	stream << " {";
-	//	const auto variableIds = value.GetVariableIds();
-	//
-	//	for (size_t i{}; i < variableIds.size(); ++i)
-	//	{
-	//		if (i != 0)
-	//			stream << ',';
-	//
-	//		stream << variableIds[i];
-	//	}
-	//
-	//	stream << " },{";
-	//
-	//	size_t variableStreamed{};
-	//	for (size_t i{}; i < variableIds.size(); ++i)
-	//	{
-	//		if (!variableIds[i].IsRefOrPointer())
-	//		{
-	//			if (variableStreamed++ != 0)
-	//				stream << ',';
-	//
-	//			GlasAuto(stream, value.GetVoid(i), variableIds[i].GetTypeId());
-	//		}
-	//	}
-	//
-	//	stream << " }}";
-	//}
+	inline bool GlasAuto(const char* label, glas::Storage::TypeTuple& value, const char* parameterNames[])
+	{
+		bool returnVal{};
+
+		TextUnformatted(label);
+
+		for (uint32_t i{}; i < value.GetSize(); ++i)
+		{
+			auto variableId = value.GetVariable(i);
+			if (!variableId.IsRefOrPointer())
+			{
+				variableId.GetTypeId().GetInfo().ImGuiRenderer(parameterNames ? parameterNames[i] : "##", value.GetVoid(i));
+			}
+		}
+
+		return returnVal;
+	}
 #endif
 
 }

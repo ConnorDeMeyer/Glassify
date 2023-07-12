@@ -249,11 +249,11 @@ namespace glas
 
 	struct FunctionInfo final
 	{
-		const void*				FunctionAddress{ };
-		VariableId				ReturnType{ };
-		std::string_view		Name{ };
-		uint64_t				TypesHash{ };
-		std::vector<VariableId>	ParameterTypes{ };
+		const void*						FunctionAddress	{ };
+		VariableId						ReturnType		{ };
+		std::string_view				Name			{ };
+		uint64_t						TypesHash		{ };
+		std::vector<VariableId>			ParameterTypes	{ };
 
 		void(*FunctionCaller)(const void* address, Storage::TypeTuple& typeTuple, void* returnAddress);
 
@@ -265,6 +265,7 @@ namespace glas
 
 	class FunctionId final
 	{
+	public:
 		constexpr FunctionId() = default;
 		constexpr FunctionId(uint64_t functionHash) : m_FunctionHash{ functionHash } {}
 	public:

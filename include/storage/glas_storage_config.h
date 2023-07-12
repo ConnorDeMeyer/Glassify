@@ -147,6 +147,10 @@ namespace glas::Storage
 		template <typename... T>
 		static TypeTuple Create();
 
+		template <typename... T>
+		static TypeTuple CreateNoReferences();
+		static TypeTuple CreateNoReferences(std::span<const VariableId> variables);
+
 		VariableId GetVariable(size_t index) const;
 
 		void* GetVoid(size_t index) const;
