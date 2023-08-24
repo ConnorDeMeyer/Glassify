@@ -7,8 +7,6 @@
 
 #include <cassert>
 
-
-
 namespace glas
 {
 	constexpr uint64_t hash(std::string_view str)
@@ -148,8 +146,7 @@ namespace glas
 
 	inline std::unordered_map<TypeId, TypeInfo>& GetTypeInfoMap()
 	{
-		static std::unordered_map<TypeId, TypeInfo> TypeInfoMap;
-		return TypeInfoMap;
+		return GetGlobalData().TypeInfoMap;
 	}
 
 	inline const std::unordered_map<TypeId, TypeInfo>& GetAllTypeInfo()
@@ -167,6 +164,19 @@ namespace glas
 	constexpr std::array<VariableId, sizeof...(Types)> GetVariableArray()
 	{
 		return std::array<VariableId, sizeof...(Types)> {VariableId::Create<Types>()...};
+	}
+
+	template <typename Tuple, size_t ... Index>
+	constexpr std::array<VariableId,sizeof...(Index)> GetVariableArrayTupleHelper(std::index_sequence<Index...>)
+	{
+		return std::array<VariableId, sizeof...(Index)> { VariableId::Create<std::tuple_element_t<Index, Tuple>>()...};
+	}
+
+	template <typename Tuple>
+	constexpr std::array<VariableId, std::tuple_size_v<Tuple>> GetVariableArrayTuple()
+	{
+		constexpr size_t size = std::tuple_size_v<Tuple>;
+		return GetVariableArrayTupleHelper<Tuple>(std::make_index_sequence<size>{});
 	}
 
 	template <typename T>
@@ -220,14 +230,15 @@ namespace glas
 	}
 
 	template <typename Class>
-	const MemberInfo& RegisterField(VariableId MemberId, std::string_view fieldName, uint32_t Offset, uint32_t Size, uint32_t Align)
+	const MemberInfo& RegisterField(VariableId memberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align, MemberProperties properties)
 	{
 		MemberInfo info;
 		info.Name			= fieldName;
-		info.VariableId		= MemberId;
-		info.Offset			= Offset;
-		info.Size			= Size;
-		info.Align			= Align;
+		info.VariableId		= memberId;
+		info.Offset			= offset;
+		info.Size			= size;
+		info.Align			= align;
+		info.Properties		= properties;
 
 		auto& memberInfo = const_cast<TypeInfo&>(RegisterType<Class>());
 
@@ -235,7 +246,7 @@ namespace glas
 	}
 
 	template<typename Class, typename Field>
-	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t Offset)
+	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t Offset, MemberProperties properties)
 	{
 		auto registerField = RegisterType<Field>();
 
@@ -245,10 +256,52 @@ namespace glas
 			fieldName,
 			Offset,
 			sizeof(Field),
-			alignof(Field));
+			alignof(Field),
+			properties);
 	}
 
 	/** FUNCTION REFLECTION*/
+
+	template <typename ReturnType, typename ... ParameterTypes>
+	inline FunctionInfo FillFunctionInfo(const void* address, std::string_view name, FunctionProperties properties)
+	{
+		FunctionInfo info{};
+
+		info.FunctionAddress	= address;
+		info.ReturnType			= VariableId::Create<ReturnType>();
+		info.Name				= name;
+		info.TypesHash			= GetTypesHash<ReturnType, ParameterTypes...>();
+		info.Properties			= properties;
+
+		if constexpr (sizeof...(ParameterTypes) != 0)
+		{
+			info.ParameterTypes.resize(sizeof...(ParameterTypes));
+			auto parameterTypes = GetVariableArray<ParameterTypes...>();
+
+			std::copy(parameterTypes.begin(), parameterTypes.end(), info.ParameterTypes.begin());
+		}
+
+		return info;
+	}
+
+	template <typename TReturnType, typename ... TParameterTypes>
+	FunctionInfo FunctionInfo::Create(TReturnType(*function)(TParameterTypes...), std::string_view name, FunctionProperties properties)
+	{
+		return FillFunctionInfo<TReturnType, TParameterTypes...>(reinterpret_cast<const void*&>(function), name, properties);
+	}
+
+	template <typename Class, typename TReturnType, typename ... TParameterTypes>
+	FunctionInfo FunctionInfo::Create(TReturnType(Class::* function)(TParameterTypes...), std::string_view name, FunctionProperties properties)
+	{
+		return FillFunctionInfo<TReturnType, TParameterTypes...>(reinterpret_cast<const void*&>(function), name, properties);
+	}
+
+	template <typename Class, typename TReturnType, typename ... TParameterTypes>
+	FunctionInfo FunctionInfo::Create(TReturnType(Class::* function)(TParameterTypes...) const, std::string_view name, FunctionProperties properties)
+	{
+		return FillFunctionInfo<TReturnType, TParameterTypes...>(reinterpret_cast<const void*&>(function), name, properties);
+	}
+
 
 	template <typename ReturnT, typename ... ParameterTs>
 	auto FunctionInfo::Cast() const -> ReturnT(*)(ParameterTs...)
@@ -279,9 +332,15 @@ namespace glas
 		return name;
 	}
 
-	inline const FunctionInfo& FunctionId::GetInfo() const
+	inline const FunctionInfo* FunctionId::GetInfo() const
 	{
-		return GetGlobalData().FunctionInfoMap[*this];
+		auto& functionMap = GetGlobalData().FunctionInfoMap;
+		auto it = functionMap.find(*this);
+		if (it != functionMap.end())
+		{
+			return &it->second;
+		}
+		return nullptr;
 	}
 
 	template <typename ReturnType, typename ... ParameterTypes>
@@ -302,146 +361,226 @@ namespace glas
 		return FunctionId{ GetFunctionHash(function, name) };
 	}
 
-#ifdef GLAS_STORAGE
-	inline void FunctionInfo::Call(Storage::TypeTuple& typeTuple, void* pReturnValue) const
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	FunctionId FunctionId::Create(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name)
 	{
-		assert(typeTuple.GetVariableIds().size() == ParameterTypes.size());
-		assert(std::equal(ParameterTypes.begin(), ParameterTypes.end(), typeTuple.GetVariableIds().begin(), [](const VariableId& lhs, const VariableId& rhs)
+		return FunctionId{ GetFunctionHash(function, name) };
+	}
+
+	constexpr bool FunctionInfo::IsPropertySet(FunctionProperties property) const
+	{
+		return !!(Properties & property);
+	}
+
+#ifdef GLAS_STORAGE
+	inline void FunctionInfo::Call(Storage::TypeTuple& parameters, void* pReturnValue) const
+	{
+		assert(parameters.GetVariableIds().size() == ParameterTypes.size());
+		assert(std::equal(ParameterTypes.begin(), ParameterTypes.end(), parameters.GetVariableIds().begin(), [](const VariableId& lhs, const VariableId& rhs)
 		{
 				return lhs.GetTypeId() == rhs.GetTypeId() &&
 					lhs.GetArraySize() == rhs.GetArraySize() &&
 					lhs.IsConst() == rhs.IsConst();
 		}));
-		FunctionCaller(FunctionAddress, typeTuple, pReturnValue);
+		FunctionCaller(FunctionAddress, parameters, pReturnValue);
 	}
 
-	inline void FunctionId::Call(Storage::TypeTuple& typeTuple, void* pReturnValue) const
+	inline void FunctionInfo::MemberCall(void* subject, Storage::TypeTuple& parameters, void* pReturnValue) const
 	{
-		GetInfo().Call(typeTuple, pReturnValue);
+ 		*static_cast<void**>(parameters.GetVoid(0)) = subject;
+		Call(parameters, pReturnValue);
+	}
+
+	template <typename ReturnType, typename ... ParameterTypes>
+	FunctionId FunctionId::GetFunctionId(ReturnType(*function)(ParameterTypes...))
+	{
+		return GetFunctionId(reinterpret_cast<const void*&>(function));
+	}
+
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	FunctionId FunctionId::GetFunctionId(ReturnType(Class::* function)(ParameterTypes...))
+	{
+		return GetFunctionId(reinterpret_cast<const void*&>(function));
+	}
+
+	template<typename Class, typename ReturnType, typename ...ParameterTypes>
+	FunctionId FunctionId::GetFunctionId(ReturnType(Class::* function)(ParameterTypes...) const)
+	{
+		return GetFunctionId(reinterpret_cast<const void*&>(function));
+	}
+
+	inline FunctionId FunctionId::GetFunctionId(const void* functionAddress)
+	{
+		return GetGlobalData().FunctionAddressToIdMap[functionAddress];
+	}
+
+	inline void FunctionId::Call(Storage::TypeTuple& parameters, void* pReturnValue) const
+	{
+		assert(GetInfo());
+		GetInfo()->Call(parameters, pReturnValue);
+	}
+
+	inline void FunctionId::MemberCall(void* subject, Storage::TypeTuple& parameters, void* pReturnValue) const
+	{
+		assert(GetInfo());
+		GetInfo()->MemberCall(subject, parameters, pReturnValue);
 	}
 
 	template <typename ParameterTypesTuple, typename Function, size_t... Index>
 	auto TupleFunctionCall(Function function, Storage::TypeTuple& typeTuple, std::index_sequence<Index...>)
 	{
-		return function(typeTuple.Get<std::remove_reference_t<std::tuple_element_t<Index, ParameterTypesTuple>>>(Index)...);
+		return function(
+			typeTuple.Get<
+			std::remove_reference_t<
+			std::tuple_element_t<Index, ParameterTypesTuple>>>(Index)...);
 	}
 
 	template <typename ParameterTypesTuple, typename Class, typename Function, size_t... Index>
 	auto TupleMethodCall(Function function, Storage::TypeTuple& typeTuple, std::index_sequence<Index...>)
 	{
-		return (typeTuple.Get<Class>(0).*function)(typeTuple.Get<std::tuple_element_t<Index + 1, ParameterTypesTuple>>(Index + 1)...);
+		return (typeTuple.Get<Class*>(0)->*function)(
+			typeTuple.Get<
+			std::remove_reference_t<
+			std::tuple_element_t<Index + 1, ParameterTypesTuple>>>(Index + 1)...);
+	}
+
+	template <typename ReturnType, typename ... ParameterTypes>
+	inline void FunctionCaller(const void* address, Storage::TypeTuple& tupleStorage, void* returnAddress)
+	{
+		ReturnType(*function)(ParameterTypes...);
+		function = reinterpret_cast<decltype(function)&>(address);
+		if constexpr (std::is_same_v<ReturnType, void>)
+		{
+			(void)returnAddress;
+
+			TupleFunctionCall<std::tuple<ParameterTypes...>>(
+				function,
+				tupleStorage,
+				std::make_index_sequence<sizeof...(ParameterTypes)>());
+		}
+		else
+		{
+			if (returnAddress)
+				*static_cast<ReturnType*>(returnAddress) = TupleFunctionCall<std::tuple<ParameterTypes...>>(
+					function,
+					tupleStorage,
+					std::make_index_sequence<sizeof...(ParameterTypes)>());
+			else
+				TupleFunctionCall<std::tuple<ParameterTypes...>>(
+					function,
+					tupleStorage,
+					std::make_index_sequence<sizeof...(ParameterTypes)>());
+		}
+	}
+
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	inline void MethodCaller(const void* address, Storage::TypeTuple& tupleStorage, void* returnAddress)
+	{
+		ReturnType(Class::*function)(ParameterTypes...);
+		function = reinterpret_cast<decltype(function)&>(address);
+		if constexpr (std::is_same_v<ReturnType, void>)
+		{
+			(void)returnAddress;
+
+			TupleMethodCall<std::tuple<Class, ParameterTypes...>, Class>(
+				function,
+				tupleStorage,
+				std::make_index_sequence<sizeof...(ParameterTypes)>());
+		}
+		else
+		{
+			if (returnAddress)
+				*static_cast<ReturnType*>(returnAddress) = TupleMethodCall<std::tuple<Class, ParameterTypes...>, Class>(
+					function,
+					tupleStorage,
+					std::make_index_sequence<sizeof...(ParameterTypes)>());
+			else
+				TupleMethodCall<std::tuple<Class, ParameterTypes...>, Class>(
+					function,
+					tupleStorage,
+					std::make_index_sequence<sizeof...(ParameterTypes)>());
+		}
+	}
+
+#else
+	template <typename ReturnType, typename ... ParameterTypes>
+	inline void FunctionCaller(const void* address, Storage::TypeTuple& tupleStorage, void* returnAddress)
+	{
+		(void)address;
+		(void)tupleStorage;
+		(void)returnAddress;
+	}
+
+	template <typename ReturnType, typename ... ParameterTypes>
+	inline void MethodCaller(const void* address, Storage::TypeTuple& tupleStorage, void* returnAddress)
+	{
+		(void)address;
+		(void)tupleStorage;
+		(void)returnAddress;
 	}
 #endif
 
 	template <typename ReturnType, typename ... ParameterTypes>
-	const FunctionInfo& RegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name)
+	const FunctionInfo& RegisterFunction(ReturnType(*function)(ParameterTypes...), 
+		std::string_view name,
+		FunctionProperties properties)
 	{
+		FunctionId functionId = FunctionId::Create(function, name);
+		
+		if (auto functionInfo = functionId.GetInfo())
+			return *functionInfo;
+
+		FunctionInfo info = FunctionInfo::Create(function, name, properties & ~(FunctionProperties::ConstMethod | FunctionProperties::Method));
+		info.FunctionCaller = &FunctionCaller<ReturnType, ParameterTypes...>;
+
 		auto& globalFunctionData = GetGlobalData();
 
-		FunctionId functionId = FunctionId::Create(function, name);
-
-		const auto it = globalFunctionData.FunctionInfoMap.find(functionId);
-		if (it != globalFunctionData.FunctionInfoMap.end())
-			return it->second;
-
-		FunctionInfo info{};
-		info.FunctionAddress	= reinterpret_cast<const void*&>(function);
-		info.ReturnType			= VariableId::Create<ReturnType>();
-		info.Name				= name;
-		info.TypesHash			= GetTypesHash<ReturnType, ParameterTypes...>();
-
-		if constexpr (sizeof...(ParameterTypes) != 0)
-		{
-			info.ParameterTypes.resize(sizeof...(ParameterTypes));
-			auto parameterTypes = GetVariableArray<ParameterTypes...>();
-
-			std::copy(parameterTypes.begin(), parameterTypes.end(), info.ParameterTypes.begin());
-		}
-
-#ifdef GLAS_STORAGE
-		info.FunctionCaller = [](const void* address, Storage::TypeTuple& tupleStorage, void* returnAddress) -> void
-		{
-			if constexpr (std::is_same_v<ReturnType, void>)
-			{
-				(void)returnAddress;
-
-				TupleFunctionCall<std::tuple<ParameterTypes...>>(
-					reinterpret_cast<decltype(function)>(address),
-					tupleStorage,
-					std::make_index_sequence<sizeof...(ParameterTypes)>());
-			}
-			else
-			{
-				if (returnAddress)
-					*static_cast<ReturnType*>(returnAddress) = TupleFunctionCall<std::tuple<ParameterTypes...>>(
-						reinterpret_cast<decltype(function)>(address),
-						tupleStorage,
-						std::make_index_sequence<sizeof...(ParameterTypes)>());
-				else
-					TupleFunctionCall<std::tuple<ParameterTypes...>>(
-						reinterpret_cast<decltype(function)>(address),
-						tupleStorage,
-						std::make_index_sequence<sizeof...(ParameterTypes)>());
-			}
-		};
-#endif
-
 		globalFunctionData.NameToFunctionIdMap.emplace(name, functionId);
+		globalFunctionData.FunctionAddressToIdMap.emplace(info.FunctionAddress, functionId);
 		return globalFunctionData.FunctionInfoMap.emplace(functionId, std::move(info)).first->second;
 	}
 
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
-	const FunctionInfo& RegisterMethodFunction(ReturnType(Class::* function)(ParameterTypes...), std::string_view name)
+	const FunctionInfo& RegisterMethodFunctionHelper(FunctionId functionId, const void* function, std::string_view name, FunctionProperties properties)
 	{
+		if (auto functionInfo = functionId.GetInfo())
+			return *functionInfo;
+
+		FunctionInfo info = FillFunctionInfo<ReturnType, Class*, ParameterTypes...>(function, name, properties);
+		info.FunctionCaller = &MethodCaller<Class, ReturnType, ParameterTypes...>;
+
 		auto& classInfo = const_cast<TypeInfo&>(RegisterType<Class>());
-		auto& memberFunctionData = classInfo.MemberFunctions;
+		classInfo.MemberFunctions.emplace_back(functionId);
 
-		FunctionId functionId = FunctionId::Create(function, name);
+		auto& globalFunctionData = GetGlobalData();
 
-		const auto it = memberFunctionData.find(functionId);
-		if (it != memberFunctionData.end())
-			return it->second;
+		globalFunctionData.NameToFunctionIdMap.emplace(name, functionId);
+		globalFunctionData.FunctionAddressToIdMap.emplace(info.FunctionAddress, functionId);
+		return globalFunctionData.FunctionInfoMap.emplace(functionId, std::move(info)).first->second;
+	}
 
-		FunctionInfo info{};
-		info.FunctionAddress	= reinterpret_cast<const void*&>(function);
-		info.ReturnType			= VariableId::Create<ReturnType>();
-		info.Name				= name;
-		info.TypesHash			= GetTypesHash<ReturnType, ParameterTypes...>();
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	const FunctionInfo& RegisterMethodFunction(ReturnType(Class::* function)(ParameterTypes...), 
+		std::string_view name,
+		FunctionProperties properties = FunctionProperties::None)
+	{
+		return RegisterMethodFunctionHelper<Class, ReturnType, ParameterTypes...>(
+			FunctionId::Create(function, name),
+			reinterpret_cast<const void*&>(function),
+			name,
+			(properties | FunctionProperties::Method) & ~(FunctionProperties::ConstMethod));
+	}
 
-		info.ParameterTypes.resize(1 + sizeof...(ParameterTypes));
-		auto parameterTypes = GetVariableArray<Class, ParameterTypes...>();
-
-		std::copy(parameterTypes.begin(), parameterTypes.end(), info.ParameterTypes.begin());
-
-#ifdef GLAS_STORAGE
-		info.FunctionCaller = [](const void* address, Storage::TypeTuple& tupleStorage, void* returnAddress) -> void
-		{
-			if constexpr (std::is_same_v<ReturnType, void>)
-			{
-				(void)returnAddress;
-				TupleMethodCall<std::tuple<Class, ParameterTypes...>,Class>(
-					reinterpret_cast<decltype(function)&>(address),
-					tupleStorage,
-					std::make_index_sequence<sizeof...(ParameterTypes)>());
-			}
-			else
-			{
-				if (returnAddress)
-					*static_cast<ReturnType*>(returnAddress) = TupleMethodCall<std::tuple<Class, ParameterTypes...>, Class>(
-						reinterpret_cast<decltype(function)>(address),
-						tupleStorage,
-						std::make_index_sequence<sizeof...(ParameterTypes)>());
-				else
-					TupleMethodCall<std::tuple<Class, ParameterTypes...>, Class>(
-						reinterpret_cast<decltype(function)>(address),
-						tupleStorage,
-						std::make_index_sequence<sizeof...(ParameterTypes)>());
-			}
-		};
-#endif
-
-		classInfo.MemberFunctionNames.emplace(name, functionId);
-		return memberFunctionData.emplace(functionId, std::move(info)).first->second;
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	const FunctionInfo& RegisterMethodFunction(ReturnType(Class::* function)(ParameterTypes...) const, 
+		std::string_view name, 
+		FunctionProperties properties = FunctionProperties::None)
+	{
+		return RegisterMethodFunctionHelper<Class, ReturnType, ParameterTypes...>(
+			FunctionId::Create(function, name),
+			reinterpret_cast<const void*&>(function),
+			name,
+			(properties | FunctionProperties::ConstMethod) & ~(FunctionProperties::Method));
 	}
 
 	template <typename... Types>
@@ -467,6 +606,12 @@ namespace glas
 
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	uint64_t GetFunctionHash(ReturnType(Class::*)(ParameterTypes...), std::string_view name)
+	{
+		return hash(name) ^ GetTypesHash<Class, ReturnType, ParameterTypes...>();
+	}
+
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	uint64_t GetFunctionHash(ReturnType(Class::*)(ParameterTypes...) const, std::string_view name)
 	{
 		return hash(name) ^ GetTypesHash<Class, ReturnType, ParameterTypes...>();
 	}

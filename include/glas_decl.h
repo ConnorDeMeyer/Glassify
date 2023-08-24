@@ -6,6 +6,9 @@
 #include <unordered_map>
 #include <span>
 
+#include "glas_enum.h"
+#include "glas_properties.h"
+
 namespace glas
 {
 	//https://stackoverflow.com/questions/35941045/can-i-obtain-c-type-names-in-a-constexpr-way
@@ -234,11 +237,12 @@ namespace glas
 
 	struct MemberInfo final
 	{
-		std::string_view	Name		{ };
+		std::string			Name		{ };
 		VariableId			VariableId	{ };
 		uint32_t			Offset		{ };
 		uint32_t			Size		{ };
 		uint32_t			Align		{ };
+		MemberProperties	Properties	{ };
 
 		constexpr bool operator<(const MemberInfo& rhs) const { return Offset < rhs.Offset; }
 	};
@@ -251,16 +255,31 @@ namespace glas
 	{
 		const void*						FunctionAddress	{ };
 		VariableId						ReturnType		{ };
-		std::string_view				Name			{ };
+		std::string						Name			{ };
 		uint64_t						TypesHash		{ };
 		std::vector<VariableId>			ParameterTypes	{ };
+		FunctionProperties				Properties		{ };
 
 		void(*FunctionCaller)(const void* address, Storage::TypeTuple& typeTuple, void* returnAddress);
+
+
+		template <typename TReturnType, typename ... TParameterTypes>
+		static FunctionInfo Create(TReturnType(*function)(TParameterTypes...), std::string_view name, FunctionProperties properties);
+
+		template <typename Class, typename TReturnType, typename ... TParameterTypes>
+		static FunctionInfo Create(TReturnType(Class::*function)(TParameterTypes...), std::string_view name, FunctionProperties properties);
+
+		template <typename Class, typename TReturnType, typename ... TParameterTypes>
+		static FunctionInfo Create(TReturnType(Class::* function)(TParameterTypes...) const, std::string_view name, FunctionProperties properties);
 
 		template <typename ReturnT, typename... ParameterTs>
 		auto Cast() const->ReturnT(*)(ParameterTs...);
 
-		void Call(Storage::TypeTuple& typeTuple, void* pReturnValue = nullptr) const;
+		inline void Call(Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
+
+		inline void MemberCall(void* subject, Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
+
+		constexpr bool IsPropertySet(FunctionProperties property) const;
 	};
 
 	class FunctionId final
@@ -270,7 +289,8 @@ namespace glas
 		constexpr FunctionId(uint64_t functionHash) : m_FunctionHash{ functionHash } {}
 	public:
 		constexpr uint64_t GetId() const { return m_FunctionHash; }
-		const FunctionInfo& GetInfo() const;
+		
+		const FunctionInfo* GetInfo() const;
 
 		template <typename ReturnType, typename... ParameterTypes>
 		auto Cast() const->ReturnType(*)(ParameterTypes...);
@@ -281,7 +301,23 @@ namespace glas
 		template <typename Class, typename ReturnType, typename ... ParameterTypes>
 		static FunctionId Create(ReturnType(Class::* function)(ParameterTypes...), std::string_view name);
 
-		void Call(Storage::TypeTuple& typeTuple, void* pReturnValue = nullptr) const;
+		template <typename Class, typename ReturnType, typename ... ParameterTypes>
+		static FunctionId Create(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name);
+
+		template <typename ReturnType, typename ... ParameterTypes>
+		static FunctionId GetFunctionId(ReturnType(*function)(ParameterTypes...));
+
+		template <typename Class, typename ReturnType, typename ... ParameterTypes>
+		static FunctionId GetFunctionId(ReturnType(Class::* function)(ParameterTypes...));
+
+		template <typename Class, typename ReturnType, typename ... ParameterTypes>
+		static FunctionId GetFunctionId(ReturnType(Class::* function)(ParameterTypes...) const);
+
+		static FunctionId GetFunctionId(const void* functionAddress);
+
+		inline void Call(Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
+
+		inline void MemberCall(void* subject, Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
 
 	private:
 		uint64_t m_FunctionHash{};
@@ -341,10 +377,19 @@ namespace glas
 
 	struct GlobalData
 	{
+		GlobalData() = default;
+		~GlobalData() = default;
+		GlobalData(const GlobalData&) = delete;
+		GlobalData(GlobalData&&) noexcept = delete;
+		GlobalData& operator&(const GlobalData&) = delete;
+		GlobalData& operator=(GlobalData&&) noexcept = delete;
+
+		std::unordered_map<TypeId, TypeInfo> TypeInfoMap{};
 		std::unordered_map<FunctionId, FunctionInfo> FunctionInfoMap{};
-		std::unordered_map<std::string_view, FunctionId> NameToFunctionIdMap{};
-		std::unordered_map<std::string_view, TypeId> NameToTypeIdMap{};
-		std::unordered_map<void*, TypeId> VTableMap{};
+		std::unordered_map<std::string, FunctionId> NameToFunctionIdMap{};
+		std::unordered_map<const void*, FunctionId> FunctionAddressToIdMap{};
+		std::unordered_map<std::string, TypeId> NameToTypeIdMap{};
+		std::unordered_map<const void*, TypeId> VTableMap{};
 	};
 
 	inline GlobalData& GetGlobalData()
@@ -361,10 +406,10 @@ namespace glas
 	const TypeInfo& RegisterType();
 
 	template <typename Class, typename Field>
-	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t Offset);
+	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t Offset, MemberProperties properties = DefaultMemberProperties);
 
 	template <typename Class>
-	const MemberInfo& RegisterField(VariableId MemberId, std::string_view fieldName, uint32_t Offset, uint32_t Size, uint32_t Align);
+	const MemberInfo& RegisterField(VariableId MemberId, std::string_view fieldName, uint32_t Offset, uint32_t Size, uint32_t Align, MemberProperties properties = DefaultMemberProperties);
 
 	const TypeInfo& GetTypeInfo(TypeId id);
 
@@ -376,11 +421,14 @@ namespace glas
 	template <typename... Types>
 	constexpr std::array<VariableId, sizeof...(Types)> GetVariableArray();
 
+	template <typename Tuple>
+	constexpr std::array<VariableId, std::tuple_size_v<Tuple>> GetVariableArrayTuple();
+
 	template <typename ReturnType, typename ... ParameterTypes>
-	const FunctionInfo& RegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name);
+	const FunctionInfo& RegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name, FunctionProperties properties);
 
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
-	const FunctionInfo& RegisterMethodFunction(ReturnType(Class::* function)(ParameterTypes...), std::string_view name);
+	const FunctionInfo& RegisterMethodFunction(ReturnType(Class::* function)(ParameterTypes...), std::string_view name, FunctionProperties properties);
 
 	template <typename... Types>
 	constexpr uint64_t GetTypesHash();
@@ -390,6 +438,9 @@ namespace glas
 
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	uint64_t GetFunctionHash(ReturnType(Class::*function)(ParameterTypes...), std::string_view name);
+
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	uint64_t GetFunctionHash(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name);
 
 	template <typename Parent, typename Child>
 	constexpr size_t GetClassOffset();
@@ -422,30 +473,35 @@ namespace glas
 		inline static AutoRegisterTypeOnce_Internal StaticRegisterType{};
 	};
 
-	template <typename Class>
 	struct AutoRegisterMember
 	{
-		AutoRegisterMember(VariableId memberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align)
+		template <typename Class>
+		AutoRegisterMember(Class*, VariableId memberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align, MemberProperties properties = DefaultMemberProperties)
 		{
-			RegisterField<Class>(memberId, fieldName, offset, size, align);
+			RegisterField<Class>(memberId, fieldName, offset, size, align, properties);
 		}
 	};
 
-	template <typename ReturnType, typename ... ParameterTypes>
 	struct AutoRegisterFunction
 	{
-		AutoRegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name)
+		template <typename ReturnType, typename ... ParameterTypes>
+		AutoRegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name, FunctionProperties properties = DefaultFunctionProperties)
 		{
-			RegisterFunction(function, name);
+			RegisterFunction(function, name, properties);
 		}
 	};
 
-	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	struct AutoRegisterMemberFunction
 	{
-		AutoRegisterMemberFunction(ReturnType(Class::*function)(ParameterTypes...), std::string_view name)
+		template <typename Class, typename ReturnType, typename ... ParameterTypes>
+		AutoRegisterMemberFunction(ReturnType(Class::*function)(ParameterTypes...), std::string_view name, FunctionProperties properties = DefaultFunctionProperties)
 		{
-			RegisterMethodFunction(function, name);
+			RegisterMethodFunction(function, name, properties);
+		}
+		template <typename Class, typename ReturnType, typename ... ParameterTypes>
+		AutoRegisterMemberFunction(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name, FunctionProperties properties = DefaultFunctionProperties)
+		{
+			RegisterMethodFunction(function, name, properties);
 		}
 	};
 
@@ -475,18 +531,23 @@ namespace glas
 
 #define _CONCAT_(a,b) a ## b
 
-#define _GLAS_TYPE_INTERNAL(TYPE, ID) glas::AutoRegisterType<TYPE> _CONCAT_(RegisterType_, ID) {};
+#define _GLAS_TYPE_INTERNAL(TYPE, ID) inline static glas::AutoRegisterType<TYPE> _CONCAT_(RegisterType_, ID) {};
 #define GLAS_TYPE(TYPE) _GLAS_TYPE_INTERNAL(TYPE, __LINE__)
 
-#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, ID) inline static glas::AutoRegisterMember<TYPE> _CONCAT_(RegisterMember_, ID) {glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER))};
-#define GLAS_MEMBER(TYPE, MEMBER)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, __LINE__)
+#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::AutoRegisterMember _CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
+#define GLAS_MEMBER(TYPE, MEMBER, PROPERTIES)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, __LINE__)
+#define GLAS_MEMBER_DEF(TYPE, MEMBER)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, glas::DefaultMemberProperties, __LINE__)
 
-#define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID) inline static glas::AutoRegisterFunction _CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION};
-#define GLAS_FUNCTION(FUNCTION) _GLAS_FUNCTION_INTERNAL(FUNCTION, __LINE__);
+#define GLAS_FUNCTION_ID(FUNCTION) glas::FunctionId::Create(FUNCTION, #FUNCTION)
+#define GLAS_MEMBER_FUNCTION_ID(CLASS, FUNCTION) glas::FunctionId::Create(&CLASS::FUNCTION, #FUNCTION)
 
-#define _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, ID) inline static glas::AutoRegisterMemberFunction _CONCAT_(RegisterMemberFunction_, ID) {&CLASS::FUNCTION, #FUNCTION};
-#define GLAS_MEMBER_FUNCTION(CLASS, FUNCTION) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, __LINE__);
+#define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static glas::AutoRegisterFunction _CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
+#define GLAS_FUNCTION(FUNCTION, PROPS) _GLAS_FUNCTION_INTERNAL(FUNCTION, __LINE__, PROPS);
+#define GLAS_FUNCTION_DEF(FUNCTION) _GLAS_FUNCTION_INTERNAL(FUNCTION, __LINE__, glas::DefaultFunctionProperties);
+
+#define _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, ID) inline static glas::AutoRegisterMemberFunction _CONCAT_(RegisterMemberFunction_, ID) {&CLASS::FUNCTION, #FUNCTION, PROPS};
+#define GLAS_MEMBER_FUNCTION(CLASS, FUNCTION, PROPS) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, __LINE__);
+#define GLAS_MEMBER_FUNCTION_DEF(CLASS, FUNCTION) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, glas::DefaultFunctionProperties, __LINE__);
 
 #define _GLAS_CHILD_INTERNAL(BASE, CHILD, ID) inline static glas::AutoRegisterChildOnce<BASE, CHILD> _CONCAT_(RegisterChild_, ID) {};
 #define GLAS_CHILD(BASE, CHILD) _GLAS_CHILD_INTERNAL(BASE, CHILD, __LINE__)
-

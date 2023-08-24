@@ -6,32 +6,33 @@
 
 #include "glas_decl.h"
 
+namespace glas
+{
+
 /**
- * Comment to disable Addon and unconmment to enable
+ * Comment to disable Addons and uncomment to enable
  */
 
 #define GLAS_STORAGE
 #define GLAS_SERIALIZATION
 
+
 /**
  * struct holds type information about each type
  */
 
-namespace glas
-{
 	struct TypeInfo final
 	{
-		std::string_view								Name				{ };
-		uint32_t										Size				{ };
-		uint32_t										Align				{ };
-		void*											VTable				{ };
+		std::string					Name				{ };
+		uint32_t					Size				{ };
+		uint32_t					Align				{ };
+		void*						VTable				{ };
 
-		std::vector<MemberInfo>							Members				{ };
-		std::unordered_map<FunctionId, FunctionInfo>	MemberFunctions		{ };
-		std::unordered_map<std::string_view, FunctionId>MemberFunctionNames	{ };
+		std::vector<MemberInfo>		Members				{ };
+		std::vector<FunctionId>		MemberFunctions		{ };
 
-		std::vector<BaseClassInfo>						BaseClasses			{ };
-		std::vector<TypeId>								ChildClasses		{ };
+		std::vector<BaseClassInfo>	BaseClasses			{ };
+		std::vector<TypeId>			ChildClasses		{ };
 
 #ifdef GLAS_STORAGE
 		void (*Constructor)			(void*)									{ };
@@ -79,7 +80,7 @@ namespace glas
 namespace glas
 {
 	template <>
-	TypeInfo TypeInfo::Create<void>()
+	inline TypeInfo TypeInfo::Create<void>()
 	{
 		TypeInfo info{};
 		info.Name = TypeName<void>();
@@ -107,11 +108,11 @@ namespace glas
 		}
 
 #ifdef GLAS_STORAGE
-		Storage::FillInfo<T>(info);
+		Storage::FillFunctionInfo<T>(info);
 #endif 
 
 #ifdef GLAS_SERIALIZATION
-		Serialization::FillInfo<T>(info);
+		Serialization::FillFunctionInfo<T>(info);
 #endif 
 
 		/**

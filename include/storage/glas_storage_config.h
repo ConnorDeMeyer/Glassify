@@ -23,7 +23,7 @@ namespace glas::Storage
 #define GLAS_STORAGE_DISABLE_MOVE(TYPE) template <> inline constexpr bool glas::Storage::EnableMoveConstructor<TYPE> = false;
 
 	template <typename T>
-	constexpr void FillInfo(TypeInfo& info);
+	constexpr void FillFunctionInfo(TypeInfo& info);
 
 	class TypeStorage final
 	{
@@ -58,6 +58,11 @@ namespace glas::Storage
 
 		template <typename T>
 		T* As() const;
+
+		template <typename T>
+		std::unique_ptr<T> TransferOwnershipCheck();
+		template <typename T>
+		std::unique_ptr<T> TransferOwnershipUnsafe();
 
 	private:
 		std::unique_ptr<uint8_t[]> m_Data{};
@@ -148,10 +153,16 @@ namespace glas::Storage
 		static TypeTuple Create();
 
 		template <typename... T>
+		static TypeTuple Create(T&&... val);
+
+		template <typename... T>
 		static TypeTuple CreateNoReferences();
 		static TypeTuple CreateNoReferences(std::span<const VariableId> variables);
+		template <typename... T>
+		static TypeTuple CreateNoReferences(T&&... val);
 
 		VariableId GetVariable(size_t index) const;
+		void SetVariableUnsafe(size_t index, VariableId id);
 
 		void* GetVoid(size_t index) const;
 
@@ -160,7 +171,6 @@ namespace glas::Storage
 
 		template <typename T>
 		const T& Get(size_t index) const;
-
 
 		constexpr size_t	GetJumpTableSize		()	const	{ return m_Size * sizeof(void*); }
 		constexpr size_t	GetVariableIdsSize		()	const	{ return m_Size * sizeof(VariableId); }

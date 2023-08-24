@@ -21,8 +21,8 @@ struct TestStruct
 };
 
 
-GLAS_FUNCTION(TestFunction1);
-GLAS_MEMBER_FUNCTION(TestStruct, Test);
+GLAS_FUNCTION_DEF(TestFunction1);
+GLAS_MEMBER_FUNCTION_DEF(TestStruct, Test);
 
 int main()
 {
@@ -46,7 +46,7 @@ int main()
 	{
 		TestStruct struct0{ };
 		auto params = glas::Storage::TypeTuple{ std::tuple<TestStruct, int>(struct0, 5) };
-		memberFunctions.second.Call(params);
+		memberFunctions.Call(params);
 		std::cout << '\n';
 	}
 

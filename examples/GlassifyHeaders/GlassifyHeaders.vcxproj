@@ -151,9 +151,9 @@
     <ClInclude Include="..\..\include\glas_config.h" />
     <ClInclude Include="..\..\include\glas_decl.h" />
     <ClInclude Include="..\..\include\glas_dependencies.h" />
+    <ClInclude Include="..\..\include\glas_enum.h" />
     <ClInclude Include="..\..\include\glas_impl.h" />
-    <ClInclude Include="..\..\include\memoryTrace\glas_memTrace.h" />
-    <ClInclude Include="..\..\include\memoryTrace\glas_memTrace_config.h" />
+    <ClInclude Include="..\..\include\glas_properties.h" />
     <ClInclude Include="..\..\include\serialization\glas_serialization.h" />
     <ClInclude Include="..\..\include\serialization\glas_serialization_config.h" />
     <ClInclude Include="..\..\include\storage\glas_storage.h" />

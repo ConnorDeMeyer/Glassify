@@ -9,12 +9,19 @@
 namespace glas::Serialization
 {
 	template <typename T>
-	constexpr void FillInfo(TypeInfo& info)
+	constexpr void FillFunctionInfo(TypeInfo& info)
 	{
-		info.Serializer = [](std::ostream& stream, const void* data) { Serialize(stream, *static_cast<const T*>(data)); };
-		info.Deserializer = [](std::istream& stream, void* data) { Deserialize(stream, *static_cast<T*>(data)); };
-		info.BinarySerializer = [](std::ostream& stream, const void* data) { SerializeBinary(stream, *static_cast<const T*>(data)); };
-		info.BinaryDeserializer = [](std::istream& stream, void* data) { DeserializeBinary(stream, *static_cast<T*>(data)); };
+		if constexpr (CustomSerializer<T>) info.Serializer = [](std::ostream& stream, const void* data) { static_cast<const T*>(data)->GlasSerialize(stream); };
+		else info.Serializer = [](std::ostream& stream, const void* data) { Serialize(stream, *static_cast<const T*>(data)); };
+
+		if constexpr (CustomDeserializer<T>) info.Deserializer = [](std::istream& stream, void* data) { static_cast<T*>(data)->GlasDeserialize(stream); };
+		else info.Deserializer = [](std::istream& stream, void* data) { Deserialize(stream, *static_cast<T*>(data)); };
+
+		if constexpr (CustomSerializerBinary<T>) info.BinarySerializer = [](std::ostream& stream, const void* data) { static_cast<const T*>(data)->GlasSerializeBinary(stream); };
+		else info.BinarySerializer = [](std::ostream& stream, const void* data) { SerializeBinary(stream, *static_cast<const T*>(data)); };
+
+		if constexpr (CustomDeserializerBinary<T>) info.BinaryDeserializer = [](std::istream& stream, void* data) { static_cast<T*>(data)->GlasDeserializeBinary(stream); };
+		else info.BinaryDeserializer = [](std::istream& stream, void* data) { DeserializeBinary(stream, *static_cast<T*>(data)); };
 	}
 
 	/** HELPER FUNCTIONS */
@@ -32,14 +39,14 @@ namespace glas::Serialization
 	template <typename T>
 	void WriteStream(std::ostream& stream, const T& value)
 	{
-		stream.write(reinterpret_cast<const char*>(value), sizeof(T));
+		stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
 	}
 
 	template <typename T>
 	T ReadStream(std::istream& stream)
 	{
 		T t;
-		stream.read(reinterpret_cast<char*>(t), sizeof(T));
+		stream.read(reinterpret_cast<char*>(&t), sizeof(T));
 		return t;
 	}
 
@@ -48,6 +55,7 @@ namespace glas::Serialization
 		char buffer{};
 		stream >> buffer;
 		assert(expectedChar == buffer);
+		(void)expectedChar;
 	}
 }
 
@@ -837,21 +845,21 @@ namespace glas::Serialization
 
 namespace glas::Serialization
 {
-	void Serialize(std::ostream& stream, const float& value)
+	inline void Serialize(std::ostream& stream, const float& value)
 	{
 		if (std::isnan(value) || std::isinf(value))
 			throw std::runtime_error("float value is invalid");
 		stream << value;
 	}
 
-	void Serialize(std::ostream& stream, const double& value)
+	inline void Serialize(std::ostream& stream, const double& value)
 	{
 		if (std::isnan(value) || std::isinf(value))
 			throw std::runtime_error("float value is invalid");
 		stream << value;
 	}
 
-	void Serialize(std::ostream& stream, const long double& value)
+	inline void Serialize(std::ostream& stream, const long double& value)
 	{
 		if (std::isnan(value) || std::isinf(value))
 			throw std::runtime_error("float value is invalid");
@@ -1028,6 +1036,47 @@ namespace glas::Serialization
 		}
 	}
 
+	template <typename CastTuple, int index, typename T, typename ... Ts>
+	void SerializeBinaryTypes(std::ostream& stream, T type, Ts... types)
+	{
+		using CastType = std::tuple_element_t<index, CastTuple>;
+		if constexpr (!std::is_pointer_v<CastType>)
+		{
+			SerializeBinary(stream, static_cast<CastType>(type));
+		}
+		if constexpr (sizeof...(types) > 0)
+		{
+			SerializeBinaryTypes<CastTuple, index + 1, Ts...>(stream, types...);
+		}
+	}
+
+	// TODO make other variants and more somewhere else
+	template <typename FunctionParametersTuple, typename ... Parameters>
+	void DeserializeFunctionBinary(std::ostream& stream, Parameters... values)
+	{
+		if constexpr (sizeof...(Parameters) > 0)
+		{
+			std::array<VariableId, sizeof...(Parameters)> variables = GetVariableArrayTuple<FunctionParametersTuple>();
+			constexpr uint32_t size = static_cast<uint32_t>(variables.size());
+
+			for (auto& id : variables)
+			{
+				id.RemoveReferenceFlag();
+				id.RemoveRValReferenceFlag();
+			}
+
+			stream.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
+			stream.write(reinterpret_cast<const char*>(variables.data()), sizeof(VariableId) * size);
+
+			SerializeBinaryTypes<FunctionParametersTuple, 0, Parameters...>(stream, values...);
+		}
+		else
+		{
+			constexpr uint32_t size = 0;
+			stream.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
+		}
+	}
+
 	inline void DeserializeBinary(std::istream& stream, Storage::TypeTuple& value)
 	{
 		uint32_t size{};
@@ -1083,7 +1132,7 @@ namespace glas::Serialization
 		auto& members = info.Members;
 		for (auto& member : members)
 		{
-			if (!member.VariableId.IsRefOrPointer())
+			if (!!(member.Properties & MemberProperties::Serializable) && !member.VariableId.IsRefOrPointer())
 			{
 				if (memberOutputCount++ != 0)
 					stream << ',';
@@ -1111,7 +1160,7 @@ namespace glas::Serialization
 			Deserialize(stream, MemberName);
 
 			auto member = std::find_if(members.begin(), members.end(), [&MemberName](const MemberInfo& info) {return info.Name == MemberName; });
-			if (member != members.end() && !member->VariableId.IsRefOrPointer())
+			if (member != members.end() && !!(member->Properties & MemberProperties::Serializable) && !member->VariableId.IsRefOrPointer())
 			{
 				IStreamChar(stream, ':');
 				member->VariableId.GetTypeId().GetInfo().Deserializer(stream, VoidOffset(data, member->Offset));
@@ -1128,7 +1177,7 @@ namespace glas::Serialization
 		auto& members = info.Members;
 		for (auto& member : members)
 		{
-			if (!member.VariableId.IsRefOrPointer())
+			if (!!(member.Properties & MemberProperties::Serializable) && !member.VariableId.IsRefOrPointer())
 			{
 				member.VariableId.GetTypeId().GetInfo().BinarySerializer(stream, VoidOffset(data, member.Offset));
 			}
@@ -1142,7 +1191,7 @@ namespace glas::Serialization
 		auto& members = info.Members;
 		for (auto& member : members)
 		{
-			if (!member.VariableId.IsRefOrPointer())
+			if (!!(member.Properties & MemberProperties::Serializable) && !member.VariableId.IsRefOrPointer())
 			{
 				member.VariableId.GetTypeId().GetInfo().BinaryDeserializer(stream, VoidOffset(data, member.Offset));
 			}

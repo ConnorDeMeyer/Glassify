@@ -7,7 +7,7 @@
 namespace glas::Storage
 {
 	template <typename T>
-	constexpr void FillInfo(TypeInfo& info)
+	constexpr void FillFunctionInfo(TypeInfo& info)
 	{
 		if constexpr (std::is_default_constructible_v<T>)
 			info.Constructor = [](void* location)
@@ -170,6 +170,21 @@ namespace glas::Storage
 	T* TypeStorage::As() const
 	{
 		return (TypeId::Create<T>() == m_TypeId) ? static_cast<T*>(GetData()) : nullptr;
+	}
+
+	template <typename T>
+	std::unique_ptr<T> TypeStorage::TransferOwnershipCheck()
+	{
+		assert(glas::TypeId::Create<T>() == m_TypeId);
+		m_TypeId = {};
+		return std::unique_ptr<T>{reinterpret_cast<T*&>(m_Data.release())};
+	}
+
+	template <typename T>
+	std::unique_ptr<T> TypeStorage::TransferOwnershipUnsafe()
+	{
+		m_TypeId = {};
+		return std::unique_ptr<T>{reinterpret_cast<T*>(m_Data.release())};
 	}
 
 	/**
@@ -386,6 +401,12 @@ namespace glas::Storage
 	}
 
 	template <typename ... T>
+	TypeTuple TypeTuple::Create(T&&... val)
+	{
+		return TypeTuple(std::tuple<T...>(std::move(val)...));
+	}
+
+	template <typename ... T>
 	TypeTuple TypeTuple::CreateNoReferences()
 	{
 		auto variableIds = glas::GetVariableArray<T...>();
@@ -396,6 +417,12 @@ namespace glas::Storage
 		return TypeTuple(variableIds);
 	}
 
+	template <typename ... T>
+	TypeTuple TypeTuple::CreateNoReferences(T&&... val)
+	{
+		return TypeTuple(std::tuple<std::remove_reference_t<T>...>(std::move(val)...));
+	}
+
 	inline TypeTuple TypeTuple::CreateNoReferences(std::span<const VariableId> variables)
 	{
 		std::vector<VariableId> variableIds{ variables.begin(), variables.end() };
@@ -403,12 +430,17 @@ namespace glas::Storage
 		{
 			variable.RemoveReferenceFlag();
 		}
-		return TypeTuple({ variableIds.begin(), variableIds.end() });
+		return { std::span{ variableIds.begin(), variableIds.end() } };
 	}
 
 	inline VariableId TypeTuple::GetVariable(size_t index) const
 	{
 		return GetVariableIds()[index];
+	}
+
+	inline void TypeTuple::SetVariableUnsafe(size_t index, VariableId id)
+	{
+		GetVariableIds()[index] = id;
 	}
 
 	inline uint32_t TypeTuple::CalculateAlignment(std::span<VariableId> variables)
@@ -481,15 +513,15 @@ namespace glas::Storage
 	template <typename T>
 	T& TypeTuple::Get(size_t index)
 	{
-		assert(VariableId::Create<T>() == GetVariableIds()[index]);
-		return *static_cast<T*>(reinterpret_cast<void**>(m_Data.get())[index]);
+		assert(VariableId::Create<T>().GetTypeId() == GetVariableIds()[index].GetTypeId());
+		return *static_cast<std::remove_reference_t<T>*>(reinterpret_cast<void**>(m_Data.get())[index]);
 	}
 
 	template <typename T>
 	const T& TypeTuple::Get(size_t index) const
 	{
-		assert(VariableId::Create<T>() == GetVariableIds()[index]);
-		return *static_cast<T*>(reinterpret_cast<void**>(m_Data.get())[index]);
+		assert(VariableId::Create<T>().GetTypeId() == GetVariableIds()[index].GetTypeId());
+		return *static_cast<std::remove_reference_t<T>*>(reinterpret_cast<void**>(m_Data.get())[index]);
 	}
 
 	/**

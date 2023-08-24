@@ -24,7 +24,19 @@ namespace glas
 namespace glas::Serialization
 {
 	template <typename T>
-	constexpr void FillInfo(TypeInfo& info);
+	constexpr void FillFunctionInfo(TypeInfo& info);
+}
+
+namespace glas::Serialization
+{
+	template <typename T>
+	concept CustomSerializer = requires(const T * val, std::ostream stream) { val->GlasSerialize(stream); };
+	template <typename T>
+	concept CustomSerializerBinary = requires(const T* val, std::ostream stream) { val->GlasSerializeBinary(stream); };
+	template <typename T>
+	concept CustomDeserializer = requires(T * val, std::istream stream) { val->GlasDeserialize(stream); };
+	template <typename T>
+	concept CustomDeserializerBinary = requires(T * val, std::istream stream) { val->GlasDeserializeBinary(stream); };
 }
 
 /** STRING */
@@ -307,6 +319,9 @@ namespace glas::Serialization
 	inline void Deserialize(std::istream& stream, Storage::TypeTuple& value);
 	inline void SerializeBinary(std::ostream& stream, const Storage::TypeTuple& value);
 	inline void DeserializeBinary(std::istream& stream, Storage::TypeTuple& value);
+
+	template <typename FunctionParametersTuple, typename ... Parameters>
+	void DeserializeFunctionBinary(std::ostream& stream, Parameters... values);
 }
 #endif
 
