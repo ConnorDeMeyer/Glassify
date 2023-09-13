@@ -258,6 +258,7 @@ namespace glas
 		std::string						Name			{ };
 		uint64_t						TypesHash		{ };
 		std::vector<VariableId>			ParameterTypes	{ };
+		TypeId							OwningType		{ };
 		FunctionProperties				Properties		{ };
 
 		void(*FunctionCaller)(const void* address, Storage::TypeTuple& typeTuple, void* returnAddress);
@@ -274,6 +275,9 @@ namespace glas
 
 		template <typename ReturnT, typename... ParameterTs>
 		auto Cast() const->ReturnT(*)(ParameterTs...);
+
+		template <typename Class, typename ReturnT, typename... ParameterTs>
+		auto MethodCast() const->ReturnT(Class::*)(ParameterTs...);
 
 		inline void Call(Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
 
@@ -294,6 +298,9 @@ namespace glas
 
 		template <typename ReturnType, typename... ParameterTypes>
 		auto Cast() const->ReturnType(*)(ParameterTypes...);
+
+		template <typename Class, typename ReturnType, typename... ParameterTypes>
+		auto MethodCast() const->ReturnType(Class::*)(ParameterTypes...);
 
 		template <typename ReturnType, typename ... ParameterTypes>
 		static FunctionId Create(ReturnType(*function)(ParameterTypes...), std::string_view name);
@@ -430,6 +437,9 @@ namespace glas
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	const FunctionInfo& RegisterMethodFunction(ReturnType(Class::* function)(ParameterTypes...), std::string_view name, FunctionProperties properties);
 
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	const FunctionInfo& RegisterConstMethodFunction(ReturnType(Class::* function)(ParameterTypes...), std::string_view name, FunctionProperties properties);
+
 	template <typename... Types>
 	constexpr uint64_t GetTypesHash();
 
@@ -501,7 +511,7 @@ namespace glas
 		template <typename Class, typename ReturnType, typename ... ParameterTypes>
 		AutoRegisterMemberFunction(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name, FunctionProperties properties = DefaultFunctionProperties)
 		{
-			RegisterMethodFunction(function, name, properties);
+			RegisterConstMethodFunction(function, name, properties);
 		}
 	};
 
