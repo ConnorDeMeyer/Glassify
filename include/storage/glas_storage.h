@@ -363,6 +363,21 @@ namespace glas::Storage
 		}
 	}
 
+	inline TypeTuple::~TypeTuple()
+	{
+		for (uint32_t i{}; i < m_Size; ++i)
+		{
+			VariableId id = GetVariable(i);
+			if (!id.IsRefOrPointer())
+			{
+				if (auto destructor = id.GetTypeId().GetInfo().Destructor)
+				{
+					destructor(GetVoid(i));
+				}
+			}
+		}
+	}
+
 	inline TypeTuple::TypeTuple(std::span<VariableId> variables)
 	{
 		Initialize(variables, true);

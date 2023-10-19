@@ -135,7 +135,7 @@ namespace glas::Storage
 	{
 	public:
 		TypeTuple() = default;
-		~TypeTuple() = default;
+		~TypeTuple();
 		TypeTuple(std::span<VariableId> variables);
 
 		TypeTuple(const TypeTuple& other) = delete; // TODO
