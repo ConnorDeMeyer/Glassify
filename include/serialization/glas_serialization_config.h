@@ -1,7 +1,9 @@
 #pragma once
 
-#include <iostream>
 #include <cassert>
+#include <sstream>
+#include <iostream>
+#include <type_traits>
 
 #define GLAS_SERIALIZATION_STRING
 #define GLAS_SERIALIZATION_VECTOR

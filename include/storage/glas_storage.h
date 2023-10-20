@@ -1,8 +1,16 @@
 #pragma once
 
+#include <span>
+#include <tuple>
+#include <memory>
+#include <string>
+#include <iterator>
+#include <stdexcept>
+#include <type_traits>
+#include <initializer_list>
+
 #include "glas_storage_config.h"
 #include "../glas_config.h"
-#include <stdexcept>
 
 namespace glas::Storage
 {
@@ -138,7 +146,7 @@ namespace glas::Storage
 		return storage;
 	}
 
-	inline TypeStorage TypeStorage::CopyConstruct(glas::TypeId id, void* original)
+	inline TypeStorage TypeStorage::CopyConstruct(glas::TypeId id, const void* original)
 	{
 		auto& info = id.GetInfo();
 		assert(info.CopyConstructor);
@@ -254,7 +262,7 @@ namespace glas::Storage
 		return storage;
 	}
 
-	inline SharedTypeStorage SharedTypeStorage::CopyConstruct(glas::TypeId id, void* original)
+	inline SharedTypeStorage SharedTypeStorage::CopyConstruct(glas::TypeId id, const void* original)
 	{
 		auto& info = id.GetInfo();
 		assert(info.CopyConstructor);
@@ -370,7 +378,7 @@ namespace glas::Storage
 			VariableId id = GetVariable(i);
 			if (!id.IsRefOrPointer())
 			{
-				if (auto destructor = id.GetTypeId().GetInfo().Destructor)
+				if (const auto destructor = id.GetTypeId().GetInfo().Destructor)
 				{
 					destructor(GetVoid(i));
 				}
@@ -407,7 +415,7 @@ namespace glas::Storage
 		{
 			auto variableArray = GetVariableArray<T...>();
 			const auto variables = std::span<VariableId>(variableArray.begin(), variableArray.end());
-			return TypeTuple(variables);
+			return { variables };
 		}
 		else
 		{
@@ -458,7 +466,7 @@ namespace glas::Storage
 		GetVariableIds()[index] = id;
 	}
 
-	inline uint32_t TypeTuple::CalculateAlignment(std::span<VariableId> variables)
+	inline uint32_t TypeTuple::CalculateAlignment(std::span<VariableId> variables) const
 	{
 		uint32_t maxAlign = 1;
 		for (auto& variable : variables)
@@ -581,8 +589,8 @@ namespace glas::Storage
 	inline TypeVector::TypeVector(TypeVector&& other) noexcept
 		: m_ContainedType	{ other.m_ContainedType }
 		, m_Data			{ std::move(other.m_Data )}
-		, m_Capacity		{ other.m_Capacity }
 		, m_Size			{ other.m_Size }
+		, m_Capacity		{ other.m_Capacity }
 		, m_ElementSize		{ other.m_ElementSize }
 	{
 		other.m_Capacity = 0;
@@ -606,7 +614,7 @@ namespace glas::Storage
 		}
 	}
 
-	inline TypeVector::TypeVector(size_t count, TypeStorage& value)
+	inline TypeVector::TypeVector(size_t count, const TypeStorage& value)
 		: TypeVector(value.GetType(), count, value.GetData())
 	{}
 
@@ -737,7 +745,7 @@ namespace glas::Storage
 		}
 	}
 
-	inline void* TypeVector::PushBackCopy(void* data)
+	inline void* TypeVector::PushBackCopy(const void* data)
 	{
 		if (Size() >= Capacity())
 		{
@@ -848,7 +856,7 @@ namespace glas::Storage
 
 	inline void TypeVector::SwapRemove(size_t )
 	{
-
+		assert(false && "Not yet implemented");
 	}
 
 	inline bool TypeVector::AssertType(TypeId id)

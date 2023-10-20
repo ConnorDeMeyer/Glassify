@@ -3,8 +3,12 @@
 #include "glas_serialization_config.h"
 #include "../glas_config.h"
 
-#include <type_traits>
 #include <sstream>
+#include <iostream>
+#include <functional>
+#include <type_traits>
+#include <cassert>
+
 
 namespace glas::Serialization
 {
@@ -86,9 +90,9 @@ namespace glas::Serialization
 
 	inline void SerializeBinary(std::ostream& stream, const std::string& value)
 	{
-		size_t size = value.size();
+		const size_t size = value.size();
 		stream.write(reinterpret_cast<const char*>(&size), sizeof(size_t));
-		stream.write(value.data(), size);
+		stream.write(value.data(), static_cast<std::streamsize>(size));
 	}
 
 	inline void DeserializeBinary(std::istream& stream, std::string& value)
@@ -99,7 +103,7 @@ namespace glas::Serialization
 		value.clear();
 		value.resize(size);
 
-		stream.read(value.data(), size);
+		stream.read(value.data(), static_cast<std::streamsize>(size));
 	}
 }
 #endif
@@ -183,7 +187,7 @@ namespace glas::Serialization
 	template <typename Container>
 	void SerializeBinaryContainer(std::ostream& stream, const Container& container)
 	{
-		size_t size = container.size();
+		const size_t size = container.size();
 		stream.write(reinterpret_cast<const char*>(&size), sizeof(size_t));
 
 		for (auto& entry : container)
@@ -195,7 +199,7 @@ namespace glas::Serialization
 	template <typename Container>
 	void SerializeBinaryMapContainer(std::ostream& stream, const Container& container)
 	{
-		size_t size = container.size();
+		const size_t size = container.size();
 		stream.write(reinterpret_cast<const char*>(&size), sizeof(size_t));
 
 		for (auto& [key, value] : container)
@@ -366,7 +370,7 @@ namespace glas::Serialization
 	template <typename T>
 	void SerializeBinary(std::ostream& stream, const std::forward_list<T>& value)
 	{
-		size_t size = std::distance(value.begin(), value.end());
+		const size_t size = std::distance(value.begin(), value.end());
 		stream.write(reinterpret_cast<const char*>(&size), sizeof(size_t));
 
 		for (auto& entry : value)
@@ -649,7 +653,7 @@ namespace glas::Serialization
 	template <typename T>
 	void SerializeBinary(std::ostream& stream, const std::unique_ptr<T>& value)
 	{
-		bool hasValue{ value };
+		const bool hasValue{ value };
 		stream.write(reinterpret_cast<const char*>(&hasValue), sizeof(bool));
 		if (hasValue)
 		{
@@ -704,7 +708,7 @@ namespace glas::Serialization
 	template <typename T>
 	void SerializeBinary(std::ostream& stream, const std::optional<T>& value)
 	{
-		bool hasValue{ value.has_value() };
+		const bool hasValue{ value.has_value() };
 		stream.write(reinterpret_cast<const char*>(&hasValue), sizeof(bool));
 		if (hasValue)
 		{
@@ -911,7 +915,7 @@ namespace glas::Serialization
 	{
 		uint64_t id{};
 		stream >> id;
-		TypeId typeId{ id };
+		const TypeId typeId{ id };
 
 		if (id)
 		{
@@ -922,7 +926,7 @@ namespace glas::Serialization
 
 	inline void SerializeBinary(std::ostream& stream, const Storage::TypeStorage& value)
 	{
-		TypeId type = value.GetType();
+		const TypeId type = value.GetType();
 		stream.write(reinterpret_cast<const char*>(&type), sizeof(TypeId));
 		if (value.GetData())
 		{
@@ -1022,10 +1026,10 @@ namespace glas::Serialization
 
 	inline void SerializeBinary(std::ostream& stream, const Storage::TypeTuple& value)
 	{
-		uint32_t size{ value.GetSize() };
+		const uint32_t size{ value.GetSize() };
 		auto variableIds = value.GetVariableIds();
 		stream.write(reinterpret_cast<const char*>(&size), sizeof(uint32_t));
-		stream.write(reinterpret_cast<const char*>(variableIds.data()), sizeof(VariableId) * size);
+		stream.write(reinterpret_cast<const char*>(variableIds.data()), static_cast<std::streamsize>(sizeof(VariableId) * size));
 
 		for (size_t i{}; i < size; ++i)
 		{
@@ -1083,7 +1087,7 @@ namespace glas::Serialization
 		stream.read(reinterpret_cast<char*>(&size), sizeof(uint32_t));
 
 		auto variables = std::make_unique<VariableId[]>(size);
-		stream.read(reinterpret_cast<char*>(variables.get()), sizeof(VariableId) * size);
+		stream.read(reinterpret_cast<char*>(variables.get()), static_cast<std::streamsize>(sizeof(VariableId) * size));
 
 		value = Storage::TypeTuple(std::span(variables.get(), size));
 
@@ -1159,7 +1163,7 @@ namespace glas::Serialization
 		{
 			Deserialize(stream, MemberName);
 
-			auto member = std::find_if(members.begin(), members.end(), [&MemberName](const MemberInfo& info) {return info.Name == MemberName; });
+			auto member = std::ranges::find_if(members, [&MemberName](const MemberInfo& info) {return info.Name == MemberName; });
 			if (member != members.end() && !!(member->Properties & MemberProperties::Serializable) && !member->VariableId.IsRefOrPointer())
 			{
 				IStreamChar(stream, ':');

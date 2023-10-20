@@ -1,6 +1,12 @@
 #pragma once
 
+#include <span>
+#include <tuple>
 #include <memory>
+#include <iterator>
+#include <type_traits>
+#include <initializer_list>
+
 #include "../glas_decl.h"
 
 namespace glas
@@ -47,7 +53,7 @@ namespace glas::Storage
 		template <typename T>
 		static TypeStorage MoveConstruct(T&& value) requires std::is_move_constructible_v<T>;
 
-		TypeStorage static CopyConstruct(TypeId id, void* original);
+		TypeStorage static CopyConstruct(TypeId id, const void* original);
 
 		TypeStorage static MoveConstruct(TypeId id, void* original);
 
@@ -92,7 +98,7 @@ namespace glas::Storage
 		template <typename T>
 		static SharedTypeStorage MoveConstruct(T&& value) requires std::is_move_constructible_v<T>;
 
-		SharedTypeStorage static CopyConstruct(TypeId id, void* original);
+		SharedTypeStorage static CopyConstruct(TypeId id, const void* original);
 
 		SharedTypeStorage static MoveConstruct(TypeId id, void* original);
 
@@ -195,7 +201,7 @@ namespace glas::Storage
 	private:
 		void Initialize(std::span<VariableId> variables, bool InitializeToDefault);
 
-		uint32_t CalculateAlignment(std::span<VariableId> variables);
+		uint32_t CalculateAlignment(std::span<VariableId> variables) const;
 
 	private:
 		std::unique_ptr<uint8_t[]> m_Data{};
@@ -325,7 +331,7 @@ namespace glas::Storage
 		TypeVector(TypeVector&& other) noexcept;
 
 		TypeVector(TypeId type, size_t count);
-		TypeVector(size_t count, TypeStorage& value);
+		TypeVector(size_t count, const TypeStorage& value);
 		TypeVector(TypeId type, size_t count, const void* value);
 
 		template <typename T> TypeVector(size_t count);
@@ -374,7 +380,7 @@ namespace glas::Storage
 
 	public: // Modifiers
 
-		void*						PushBackCopy			(void* data);
+		void*						PushBackCopy			(const void* data);
 		void*						PushBackMove			(void* data);
 		void						PopBack					();
 		void						PopBack					(size_t amount);
@@ -385,7 +391,7 @@ namespace glas::Storage
 		void						SwapRemove				(size_t index);
 
 	private:
-		bool						AssertType		(TypeId id);
+		static bool					AssertType		(TypeId id);
 		void						MoveToNewBuffer	(std::unique_ptr<uint8_t[]>& buffer);
 		std::unique_ptr<uint8_t[]>	CreateNewBuffer	(size_t size)	const;
 		void						SetBuffer		(std::unique_ptr<uint8_t[]>&& buffer, size_t elementAmount);

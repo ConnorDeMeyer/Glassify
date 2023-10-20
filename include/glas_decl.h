@@ -1,12 +1,17 @@
 #pragma once
 
-#include <string_view>
-#include <cstdint>
-#include <functional>
-#include <unordered_map>
 #include <span>
+#include <array>
+#include <tuple>
+#include <string>
+#include <vector>
+#include <cstdint>
+#include <iostream>
+#include <functional>
+#include <string_view>
+#include <type_traits>
+#include <unordered_map>
 
-#include "glas_enum.h"
 #include "glas_properties.h"
 
 namespace glas
@@ -14,6 +19,9 @@ namespace glas
 	//https://stackoverflow.com/questions/35941045/can-i-obtain-c-type-names-in-a-constexpr-way
 	//asnwer by einpoklum
 
+	/**
+	 * Returns a string_view containing the name of the type at compile time
+	 */
 	template <typename T> constexpr std::string_view TypeName();
 
 	template <>
@@ -63,16 +71,28 @@ namespace glas
 		return wrapped_name.substr(prefix_length, type_name_length);
 	}
 
+	/**
+	 * Hashes a string view into a uint64_t at compile time
+	 */
 	constexpr uint64_t hash(std::string_view str);
 
+	/**
+	 * Hashes a span of uint64_t into a single uint64_t at compile time
+	 */
 	constexpr uint64_t hash(std::span<const uint64_t> span);
 
+	/**
+	 * Creates a hash for any given type
+	 */
 	template <typename Type>
 	constexpr uint64_t TypeHash()
 	{
 		return hash(TypeName<Type>());
 	}
 
+	/**
+	 * Counts the amount of pointers the given type has
+	 */
 	template <typename T>
 	constexpr uint32_t CountPointers(uint32_t counter = 0)
 	{
@@ -82,7 +102,10 @@ namespace glas
 			return counter;
 	}
 
-	//https://stackoverflow.com/questions/9851594/standard-c11-way-to-remove-all-pointers-of-a-type
+	/**
+	 * Removes the pointers from a type.
+	 * @source https://stackoverflow.com/questions/9851594/standard-c11-way-to-remove-all-pointers-of-a-type
+	 */
 	template <typename T> struct remove_all_pointers
 	{
 		using Type = T;
@@ -96,6 +119,10 @@ namespace glas
 	template <typename T>
 	using remove_all_pointers_t = typename remove_all_pointers<T>::Type;
 
+	/**
+	 * Strips the given type of all const, pointers, references, extents.
+	 * const int**& -> int
+	 */
 	template <typename T> struct strip_type
 	{
 		using Type = std::remove_cvref_t<remove_all_pointers_t<std::remove_reference_t<std::remove_all_extents_t<T>>>>;
@@ -120,7 +147,7 @@ namespace glas
 
 	/**
 	 * Class that contains an 64bit integer that is used as an identifier for a type.
-	 * @see Create()
+	 * @see Create
 	 */
 	class TypeId final
 	{
@@ -137,7 +164,7 @@ namespace glas
 
 	public:
 		/**
-		 * Static templated constexpr function that creates a m_TypeId from the given Type T.
+		 * Static templated constexpr function that creates a TypeId from the given Type T.
 		 * @return TypeId of the type at compile time.
 		 */
 		template <typename T>
@@ -156,6 +183,11 @@ namespace glas
 		constexpr uint64_t		GetId		()					const	{ return m_ID; }
 		constexpr bool			IsValid		()					const	{ return m_ID; }
 
+		/**
+		 * Returns the info of the member variable that is found at the given offset (offsetof()).
+		 * @param offset the offset of the member variable
+		 * @see offsetof
+		 */
 		const MemberInfo*		GetMemberInfo(size_t offset)		const;
 
 	private:
@@ -166,20 +198,29 @@ namespace glas
 	 * VARIABLE REFLECTION
 	 */
 
+	/**
+	 * Class that contains a TypeId and flags to describe what kind of variable it is.
+	 * Variables can contain modifiers like: const, volatile, &, &&, *, [].
+	 * VariableId has flags that describe these modifiers.
+	 * @see Create
+	 */
 	class VariableId final
 	{
 	private:
 
-		static constexpr uint32_t ConstFlag			= 1 << 0;
-		static constexpr uint32_t ReferenceFlag		= 1 << 1;
-		static constexpr uint32_t VolatileFlag		= 1 << 2;
-		static constexpr uint32_t RValReferenceFlag = 1 << 3;
+		static constexpr uint32_t ConstFlag			= 1 << 0; /**< Flag that marks if the variable is const*/
+		static constexpr uint32_t ReferenceFlag		= 1 << 1; /**< Flag that marks if the variable is a reference (&)*/
+		static constexpr uint32_t VolatileFlag		= 1 << 2; /**< Flag that marks if the variable is volatile*/
+		static constexpr uint32_t RValReferenceFlag = 1 << 3; /**< Flag that marks if the variable is a right value reference (&&)*/
 
 	public:
 
 		constexpr explicit VariableId(TypeId id) : m_Type{ id } {}
 		constexpr VariableId() = default;
 
+		/**
+		 * Creates a VariableId with the given type at compile time.
+		 */
 		template <typename T>
 		static constexpr VariableId Create();
 
@@ -212,6 +253,9 @@ namespace glas
 		constexpr bool		IsArray					()				const	{ return m_ArraySize == 1; }
 		constexpr bool		IsRefOrPointer			()				const	{ return IsPointer() || IsReference() || IsRValReference(); }
 
+		/**
+		 * Hashes the VariableId into a hash that fits into a uint64_t
+		 */
 		constexpr uint64_t	GetHash					()				const	{ return m_Type.GetId() ^ m_ArraySize ^ (static_cast<uint64_t>(m_PointerAmount) << 32) ^ (static_cast<uint64_t>(m_TraitFlags) << 40); }
 
 		constexpr uint32_t	GetSize					()				const;
@@ -221,14 +265,17 @@ namespace glas
 		friend std::ostream& operator<<(std::ostream& lhs, const VariableId& rhs);
 		friend std::istream& operator>>(std::istream& lhs, const VariableId& rhs);
 
+		/**
+		 * Returns the literal representation of the variable
+		 */
 		std::string			ToString				()				const;
 
 	private:
 
-		TypeId		m_Type			{ };	// The underlying type id
-		uint32_t	m_ArraySize		{ };	// if the variable is a fixed sized array, the size will be contained in this. else it will be 1
-		uint16_t	m_PointerAmount	{ };	// The amount of pointers that are attached to the Type
-		uint8_t		m_TraitFlags	{ };	// Other flags (const, volatile, reference, RValReference)
+		TypeId		m_Type			{ };	/**< The underlying type id */
+		uint32_t	m_ArraySize		{ };	/**< if the variable is a fixed sized array, the size will be contained in this. else it will be 1 */
+		uint16_t	m_PointerAmount	{ };	/**< The amount of pointers that are attached to the Type */
+		uint8_t		m_TraitFlags	{ };	/**< Other flags (const, volatile, reference, RValReference) */
 	};
 
 	/**
@@ -388,7 +435,7 @@ namespace glas
 		~GlobalData() = default;
 		GlobalData(const GlobalData&) = delete;
 		GlobalData(GlobalData&&) noexcept = delete;
-		GlobalData& operator&(const GlobalData&) = delete;
+		GlobalData& operator=(const GlobalData&) = delete;
 		GlobalData& operator=(GlobalData&&) noexcept = delete;
 
 		std::unordered_map<TypeId, TypeInfo> TypeInfoMap{};
@@ -438,7 +485,7 @@ namespace glas
 	const FunctionInfo& RegisterMethodFunction(ReturnType(Class::* function)(ParameterTypes...), std::string_view name, FunctionProperties properties);
 
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
-	const FunctionInfo& RegisterConstMethodFunction(ReturnType(Class::* function)(ParameterTypes...), std::string_view name, FunctionProperties properties);
+	const FunctionInfo& RegisterConstMethodFunction(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name, FunctionProperties properties);
 
 	template <typename... Types>
 	constexpr uint64_t GetTypesHash();
@@ -539,25 +586,25 @@ namespace glas
 	};
 }
 
-#define _CONCAT_(a,b) a ## b
+#define _GLAS_CONCAT_(a,b) a ## b
 
-#define _GLAS_TYPE_INTERNAL(TYPE, ID) inline static glas::AutoRegisterType<TYPE> _CONCAT_(RegisterType_, ID) {};
+#define _GLAS_TYPE_INTERNAL(TYPE, ID) inline static glas::AutoRegisterType<TYPE> _GLAS_CONCAT_(RegisterType_, ID) {};
 #define GLAS_TYPE(TYPE) _GLAS_TYPE_INTERNAL(TYPE, __LINE__)
 
-#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::AutoRegisterMember _CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
+#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::AutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
 #define GLAS_MEMBER(TYPE, MEMBER, PROPERTIES)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, __LINE__)
 #define GLAS_MEMBER_DEF(TYPE, MEMBER)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, glas::DefaultMemberProperties, __LINE__)
 
 #define GLAS_FUNCTION_ID(FUNCTION) glas::FunctionId::Create(FUNCTION, #FUNCTION)
 #define GLAS_MEMBER_FUNCTION_ID(CLASS, FUNCTION) glas::FunctionId::Create(&CLASS::FUNCTION, #FUNCTION)
 
-#define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static glas::AutoRegisterFunction _CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
+#define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static glas::AutoRegisterFunction _GLAS_CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
 #define GLAS_FUNCTION(FUNCTION, PROPS) _GLAS_FUNCTION_INTERNAL(FUNCTION, __LINE__, PROPS);
 #define GLAS_FUNCTION_DEF(FUNCTION) _GLAS_FUNCTION_INTERNAL(FUNCTION, __LINE__, glas::DefaultFunctionProperties);
 
-#define _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, ID) inline static glas::AutoRegisterMemberFunction _CONCAT_(RegisterMemberFunction_, ID) {&CLASS::FUNCTION, #FUNCTION, PROPS};
+#define _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, ID) inline static glas::AutoRegisterMemberFunction _GLAS_CONCAT_(RegisterMemberFunction_, ID) {&CLASS::FUNCTION, #FUNCTION, PROPS};
 #define GLAS_MEMBER_FUNCTION(CLASS, FUNCTION, PROPS) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, __LINE__);
 #define GLAS_MEMBER_FUNCTION_DEF(CLASS, FUNCTION) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, glas::DefaultFunctionProperties, __LINE__);
 
-#define _GLAS_CHILD_INTERNAL(BASE, CHILD, ID) inline static glas::AutoRegisterChildOnce<BASE, CHILD> _CONCAT_(RegisterChild_, ID) {};
+#define _GLAS_CHILD_INTERNAL(BASE, CHILD, ID) inline static glas::AutoRegisterChildOnce<BASE, CHILD> _GLAS_CONCAT_(RegisterChild_, ID) {};
 #define GLAS_CHILD(BASE, CHILD) _GLAS_CHILD_INTERNAL(BASE, CHILD, __LINE__)

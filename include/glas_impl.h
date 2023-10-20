@@ -1,11 +1,25 @@
 #pragma once
 
+#include <span>
+#include <array>
+#include <tuple>
+#include <string>
+#include <vector>
+#include <ranges>
+#include <cstdint>
+#include <cassert>
+#include <utility>
+#include <iostream>
 #include <algorithm>
+#include <functional>
+#include <string_view>
+#include <type_traits>
+#include <unordered_map>
+
 
 #include "glas_decl.h"
 #include "glas_config.h"
 
-#include <cassert>
 
 namespace glas
 {
@@ -13,7 +27,7 @@ namespace glas
 	{
 		std::uint64_t hash_value = 0xcbf29ce484222325ULL;
 		constexpr std::uint64_t prime = 0x100000001b3ULL;
-		for (char c : str)
+		for (const char c : str)
 		{
 			hash_value ^= static_cast<uint64_t>(c);
 			hash_value *= prime;
@@ -25,7 +39,7 @@ namespace glas
 	{
 		std::uint64_t hash_value = 0xcbf29ce484222325ULL;
 		constexpr std::uint64_t prime = 0x100000001b3ULL;
-		for (auto c : span)
+		for (const uint64_t c : span)
 		{
 			hash_value ^= static_cast<const uint64_t>(c);
 			hash_value *= prime;
@@ -105,7 +119,7 @@ namespace glas
 	}
 
 	template <typename T>
-	static constexpr VariableId VariableId::Create()
+	constexpr VariableId VariableId::Create()
 	{
 		using Type_RemovedExtents	= std::remove_all_extents_t<T>;
 		using Type_RemovedRefs		= std::remove_reference_t<Type_RemovedExtents>;
@@ -209,7 +223,7 @@ namespace glas
 		MemberInfo info{};
 		info.Offset = static_cast<uint32_t>(offset);
 
-		auto it = std::lower_bound(members.begin(), members.end(), info);
+		const auto it = std::lower_bound(members.begin(), members.end(), info);
 		if (it != members.end() && it->Offset == offset)
 		{
 			return &*it;
@@ -351,7 +365,7 @@ namespace glas
 	inline const FunctionInfo* FunctionId::GetInfo() const
 	{
 		auto& functionMap = GetGlobalData().FunctionInfoMap;
-		auto it = functionMap.find(*this);
+		const auto it = functionMap.find(*this);
 		if (it != functionMap.end())
 		{
 			return &it->second;
@@ -550,7 +564,7 @@ namespace glas
 	{
 		FunctionId functionId = FunctionId::Create(function, name);
 		
-		if (auto functionInfo = functionId.GetInfo())
+		if (const FunctionInfo* functionInfo = functionId.GetInfo())
 			return *functionInfo;
 
 		FunctionInfo info = FunctionInfo::Create(function, name, properties & ~(FunctionProperties::ConstMethod | FunctionProperties::Method));
@@ -566,7 +580,7 @@ namespace glas
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	const FunctionInfo& RegisterMethodFunctionHelper(FunctionId functionId, const void* function, std::string_view name, FunctionProperties properties)
 	{
-		if (auto functionInfo = functionId.GetInfo())
+		if (const FunctionInfo* functionInfo = functionId.GetInfo())
 			return *functionInfo;
 
 		FunctionInfo info = FillFunctionInfo<ReturnType, Class*, ParameterTypes...>(function, name, properties);
