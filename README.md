@@ -2,9 +2,48 @@
 Glassify is a simple customizable Header-Only Reflection System for C++.
 It allows the user to easily reflect upon types wherever they are inside of the codebase. The reflection data is generated before the main function is executed. The developer can choose which data gets stored inside of the reflection system by adding code to the config files.
 
+## Requisites
+C++ 20
+
 ## Installation
 Simply include the `include` folder into your project.
 `#include "glassify.h"` should be used at the top of any file that wishes to use the reflection system.
+
+### Example directory
+The example directory should not be included into an existing project and only exists for testing and providing basic examples.
+
+## Customizing Glassify
+some features of glassify are able to be customized to fit the needs of the developer:
+
+### glas_config.h
+the `glas_config.h` file contains information about the information that will be stored for each type.
+the information that is stored by default is:
+ - Name of the Type
+ - Size of the type
+ - Alignment of the type
+ - v-table pointer in case the type is polymorphic (experimental feature)
+ - Vector of Member variable info owned by the type
+ - Vector of Methods owned by the type
+ - Base classes of the type
+ - Child classes of the type
+
+It also contains 2 optional addons to the system:
+###### Storage
+ - Function pointer to construct the type
+ - Function pointer to copy construct the type
+ - Function pointer to move construct the type
+ - Function pointer to destruct the type
+ - Function pointer to swap the type
+###### Serialization
+- Function pointer to serialize the type to json
+- Function pointer to serialize the type to binary
+- Function pointer to deserialize the type from json
+- Function pointer to deserialize the type from binary
+###### Custom
+ This section is reserved for the developer to add any necessary information
+
+### glas_properties.h
+the `glas_properties.h` file contains customizable properties that can be placed on member variables and functions.
 
 ## Usage
 
