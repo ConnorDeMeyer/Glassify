@@ -282,57 +282,156 @@ namespace glas
 	 * MEMBER VARIABLE REFLECTION
 	 */
 
+	/**
+	 * Structure that describes information about member variables of a class or struct
+	 */
 	struct MemberInfo final
 	{
-		std::string			Name		{ };
-		VariableId			VariableId	{ };
-		uint32_t			Offset		{ };
-		uint32_t			Size		{ };
-		uint32_t			Align		{ };
-		MemberProperties	Properties	{ };
+		std::string			Name		{ }; /**< Name of the member variable*/
+		VariableId			VariableId	{ }; /**< Type Information about the member variable*/
+		uint32_t			Offset		{ }; /**< Offset of the member variable inside of the owning class*/
+		uint32_t			Size		{ }; /**< Size of the member variable inside of the owning class*/
+		uint32_t			Align		{ }; /**< Alignment of the member variable inside of the owning class*/
+
+		/**
+		 * Custom properties that can be set when registering the member variables.
+		 * @see MemberProperties
+		 * @see glas_properties.h
+		 */
+		MemberProperties	Properties	{ }; 
 
 		constexpr bool operator<(const MemberInfo& rhs) const { return Offset < rhs.Offset; }
+
+		/**
+		 * Check whether a property is set in this member variable
+		 * @see MemberProperties
+		 * @see Properties
+		 */
+		constexpr bool IsPropertySet(MemberProperties property) const;
 	};
 
 	/**
 	 * FUNCTION REFLECTION
 	 */
 
+	/**
+	 * Structure that described information about a function or methods (member function).
+	 */
 	struct FunctionInfo final
 	{
-		const void*						FunctionAddress	{ };
-		VariableId						ReturnType		{ };
-		std::string						Name			{ };
+		const void*						FunctionAddress	{ }; /**< Address of the function*/
+		VariableId						ReturnType		{ }; /**< Information about the return type of the function*/
+		std::string						Name			{ }; /**< Name of the function*/
+		std::vector<VariableId>			ParameterTypes	{ }; /**< Vector containing information about each parameter*/
+
+		/**
+		 * Hash of the return type and parameter types combined.
+		 * Is used to quickly cast from the function address into a proper function type.
+		 * @see Cast
+		 * @see GetTypeHash
+		 * @see VariableId
+		 */
 		uint64_t						TypesHash		{ };
-		std::vector<VariableId>			ParameterTypes	{ };
+
+		/**
+		 * The type that owns this function in case the function is a method.
+		 * @see IsMethod
+		 * @see TypeId
+		 */
 		TypeId							OwningType		{ };
+
+		/**
+		 * Custom Properties that can be set when registering the function or method.
+		 * @see FunctionProperties
+		 * @see glas_properties.h
+		 */
 		FunctionProperties				Properties		{ };
 
-		void(*FunctionCaller)(const void* address, Storage::TypeTuple& typeTuple, void* returnAddress);
+		/**
+		 * Function pointer containing a call to a lambda that will execute the registered function with the parameters inside a TypeTuple.
+		 * @param 0 address of the function
+		 * @param 1 TypeTuple containing the data of the parameters to call the function
+		 * @param 2 optional address of a uninitialized variable that will be set when the function returns a value.
+		 * @see Call
+		 * @see MethodCall
+		 * @see TypeTuple
+		 */
+		void(*FunctionCaller)(const void*, Storage::TypeTuple&, void*);
 
+	public:
 
+		/**
+		 * Creates a FunctionInfo struct given the *function* address, name of the function and properties.
+		 * @see FunctionProperties
+		 */
 		template <typename TReturnType, typename ... TParameterTypes>
 		static FunctionInfo Create(TReturnType(*function)(TParameterTypes...), std::string_view name, FunctionProperties properties);
 
+		/**
+		 * Creates a FunctionInfo struct given the *method* address, name of the method and properties.
+		 * @see FunctionProperties
+		 */
 		template <typename Class, typename TReturnType, typename ... TParameterTypes>
 		static FunctionInfo Create(TReturnType(Class::*function)(TParameterTypes...), std::string_view name, FunctionProperties properties);
 
+		/**
+		 * Creates a FunctionInfo struct given the *const method* address, name of the method and properties.
+		 * @see FunctionProperties
+		 */
 		template <typename Class, typename TReturnType, typename ... TParameterTypes>
 		static FunctionInfo Create(TReturnType(Class::* function)(TParameterTypes...) const, std::string_view name, FunctionProperties properties);
 
+		/**
+		 * Tries casting the function address stored inside of the struct to a function type with the given ReturnT as return type, and ParameterTs as parameter types.
+		 * @returns function pointer if successful or nullptr if not successful.
+		 * @see TypesHash
+		 */
 		template <typename ReturnT, typename... ParameterTs>
 		auto Cast() const->ReturnT(*)(ParameterTs...);
 
+		/**
+		 * Tries casting the method address stored inside of the struct to a method type with the given Class as the owning class, ReturnT as the return type, and ParameterTs as the parameter types.
+		 * @returns method pointer if successful or nullptr if not successful.
+		 * @see TypeHash
+		 * @see OwningType
+		 */
 		template <typename Class, typename ReturnT, typename... ParameterTs>
 		auto MethodCast() const->ReturnT(Class::*)(ParameterTs...);
 
+		/**
+		 * Call the function with the given parameters that are stored inside of the type tuple.
+		 * @param parameters TypeTuple containing the data of the parameters.
+		 * @param pReturnValue optional address of an uninitialized variable to be initialized when the function returns a value.
+		 * @see TypeTuple
+		 */
 		inline void Call(Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
 
+		/**
+		 * Call the member methods with the given parameters that are stored inside of the type tuple.
+		 * @param subject pointer to the instance of the owning class
+		 * @param parameters TypeTuple containing the data of the parameters.
+		 * @param pReturnValue optional address of an uninitialized variable to be initialized when the function returns a value.
+		 * @see TypeTuple
+		 */
 		inline void MemberCall(void* subject, Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
 
+		/**
+		 * Check whether a property is set in this function/method
+		 * @see FunctionProperties
+		 */
 		constexpr bool IsPropertySet(FunctionProperties property) const;
+
+		/** Returns true if the function stored is a property*/
+		constexpr bool IsMethod() const { return OwningType.IsValid(); }
 	};
 
+	/**
+	 * Class for identifying functions and methods.
+	 * This class is easily copied and moved and maps to the actual FunctionInfo
+	 * @see FunctionInfo
+	 * @see GLAS_FUNCTION_ID
+	 * @see GLAS_MEMBER_FUNCTION_ID
+	 */
 	class FunctionId final
 	{
 	public:
@@ -340,37 +439,102 @@ namespace glas
 		constexpr FunctionId(uint64_t functionHash) : m_FunctionHash{ functionHash } {}
 	public:
 		constexpr uint64_t GetId() const { return m_FunctionHash; }
-		
+
+		/**
+		 * Get the FunctionInfo associated with this function
+		 * @see FunctionInfo
+		 */
 		const FunctionInfo* GetInfo() const;
 
+		/**
+		 * Cast the function address associated with this FunctionId to a function pointer with the given return type and parameter types.
+		 * @see FunctionInfo::Cast
+		 */
 		template <typename ReturnType, typename... ParameterTypes>
 		auto Cast() const->ReturnType(*)(ParameterTypes...);
 
+		/**
+		 * Cast the function address associated with this FunctionId to a method pointer of the given class with the given return type and parameter types.
+		 * @see FunctionInfo::MethodCast
+		 */
 		template <typename Class, typename ReturnType, typename... ParameterTypes>
 		auto MethodCast() const->ReturnType(Class::*)(ParameterTypes...);
 
+		/**
+		 * Creates a functionId from the given function.
+		 * @param function function pointer.
+		 * @param name name of the function.
+		 * @returns generated function Id
+		 * @see GLAS_MEMBER_FUNCTION_ID
+		 * @see GLAS_FUNCTION_ID
+		 */
 		template <typename ReturnType, typename ... ParameterTypes>
 		static FunctionId Create(ReturnType(*function)(ParameterTypes...), std::string_view name);
 
+		/**
+		 * Creates a functionId from the given method.
+		 * @param function method pointer.
+		 * @param name name of the method.
+		 * @returns generated function Id
+		 * @see GLAS_MEMBER_FUNCTION_ID
+		 * @see GLAS_FUNCTION_ID
+		 */
 		template <typename Class, typename ReturnType, typename ... ParameterTypes>
 		static FunctionId Create(ReturnType(Class::* function)(ParameterTypes...), std::string_view name);
 
+		/**
+		 * Creates a functionId from the given const method.
+		 * @param function method pointer.
+		 * @param name name of the method.
+		 * @returns generated function Id
+		 * @see GLAS_MEMBER_FUNCTION_ID
+		 * @see GLAS_FUNCTION_ID
+		 */
 		template <typename Class, typename ReturnType, typename ... ParameterTypes>
 		static FunctionId Create(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name);
 
+		/**
+		 * Get the functionId that is associated with the function address.
+		 * Function must have been registered before using this function.
+		 */
 		template <typename ReturnType, typename ... ParameterTypes>
 		static FunctionId GetFunctionId(ReturnType(*function)(ParameterTypes...));
 
+		/**
+		 * Get the functionId that is associated with the method address.
+		 * Function must have been registered before using this function.
+		 */
 		template <typename Class, typename ReturnType, typename ... ParameterTypes>
 		static FunctionId GetFunctionId(ReturnType(Class::* function)(ParameterTypes...));
 
+		/**
+		 * Get the functionId that is associated with the const method address.
+		 * Function must have been registered before using this function.
+		 */
 		template <typename Class, typename ReturnType, typename ... ParameterTypes>
 		static FunctionId GetFunctionId(ReturnType(Class::* function)(ParameterTypes...) const);
 
+		/**
+		 * Get the functionId that is associated with the function address.
+		 * Function must have been registered before using this function.
+		 */
 		static FunctionId GetFunctionId(const void* functionAddress);
 
+		/**
+		 * Call the function associated with this function ID with the given parameters.
+		 * @param parameters the values of the parameters that will used to call the function
+		 * @param pReturnValue the address of an uninitialized variable that will be filled in case the function has a return value.
+		 * @see TypeTuple
+		 */
 		inline void Call(Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
 
+		/**
+		 * Call the function associated with this function ID with the given parameters.
+		 * @param subject instance of the class that the method belongs to.
+		 * @param parameters the values of the parameters that will used to call the function
+		 * @param pReturnValue the address of an uninitialized variable that will be filled in case the function has a return value.
+		 * @see TypeTuple
+		 */
 		inline void MemberCall(void* subject, Storage::TypeTuple& parameters, void* pReturnValue = nullptr) const;
 
 	private:
@@ -381,11 +545,25 @@ namespace glas
 	 * INHERITANCE REFLECTION
 	 */
 
+	/**
+	 * Struct for describing the relation ship between a class and it parent class 
+	 */
 	struct BaseClassInfo
 	{
+		/**
+		 * The Id of the parent class
+		 */
 		TypeId BaseId{};
+
+		/**
+		 * The offset in the child class that the parent class is located at.
+		 * in case of multiple inheritance, the first inherited class is at offset 0, but the next data members of the other classes will be located further inside the class.
+		 */
 		size_t ClassOffset{};
 
+		/**
+		 * Creates a BaseClassInfo with the given Parent and Child classes
+		 */
 		template <typename Parent, typename Child>
 		static constexpr BaseClassInfo Create();
 	};
@@ -395,6 +573,7 @@ namespace glas
  * HASH FUNCTIONS
  */
 
+/** Hash function for TypeId to be used in std algorithms and unordered containers*/
 template <>
 struct std::hash<glas::TypeId>
 {
@@ -404,6 +583,7 @@ struct std::hash<glas::TypeId>
 	}
 };
 
+/** Hash function for VariableId to be used in std algorithms and unordered containers*/
 template <>
 struct std::hash<glas::VariableId>
 {
@@ -413,6 +593,7 @@ struct std::hash<glas::VariableId>
 	}
 };
 
+/** Hash function for FunctionId to be used in std algorithms and unordered containers*/
 template <>
 struct std::hash<glas::FunctionId>
 {
@@ -429,23 +610,66 @@ namespace glas
 	 * GLOBAL DATA
 	 */
 
+	/**
+	 * This struct contains data about the reflection system that can be accessed anywhere in the program using glas::GetGlobalData().
+	 * @see GetGlobalData
+	 */
 	struct GlobalData
 	{
-		GlobalData() = default;
-		~GlobalData() = default;
-		GlobalData(const GlobalData&) = delete;
-		GlobalData(GlobalData&&) noexcept = delete;
-		GlobalData& operator=(const GlobalData&) = delete;
-		GlobalData& operator=(GlobalData&&) noexcept = delete;
+		GlobalData	()									= default;
+		~GlobalData	()									= default;
+		GlobalData	(const GlobalData&)					= delete;
+		GlobalData	(GlobalData&&) noexcept				= delete;
+		GlobalData& operator=(const GlobalData&)		= delete;
+		GlobalData& operator=(GlobalData&&) noexcept	= delete;
 
-		std::unordered_map<TypeId, TypeInfo> TypeInfoMap{};
-		std::unordered_map<FunctionId, FunctionInfo> FunctionInfoMap{};
-		std::unordered_map<std::string, FunctionId> NameToFunctionIdMap{};
-		std::unordered_map<const void*, FunctionId> FunctionAddressToIdMap{};
-		std::unordered_map<std::string, TypeId> NameToTypeIdMap{};
-		std::unordered_map<const void*, TypeId> VTableMap{};
+		/**
+		 * Map between TypeIds and their respective TypeInfos. Type must have been registered.
+		 * @see TypeId::GetInfo
+		 * @see GLAS_TYPE
+		 */
+		std::unordered_map<TypeId, TypeInfo>			TypeInfoMap				{ };
+
+		/**
+		 * Map between the name of a type and its respective TypeId. Type must have been registered first
+		 * @see GLAS_TYPE
+		 */
+		std::unordered_map<std::string, TypeId>			NameToTypeIdMap			{ };
+
+		/**
+		 * Map between FunctionIds and their respective FunctionInfo. Function must have been registered.
+		 * @see FunctionId::GetInfo
+		 * @see GLAS_REGISTER_FUNCTION
+		 * @see GLAS_MEMBER_REGISTER_FUNCTION
+		 */
+		std::unordered_map<FunctionId, FunctionInfo>	FunctionInfoMap			{ };
+
+		/**
+		 * Map between a function name and its respective functionId. Function must have been registered.
+		 * @see GLAS_REGISTER_FUNCTION
+		 * @see GLAS_MEMBER_REGISTER_FUNCTION
+		 * @warning experimental feature
+		 */
+		std::unordered_map<std::string, FunctionId>		NameToFunctionIdMap		{ };
+
+		/**
+		 * Map between function addresses and their respective functionId. Function must have been registered.
+		 * @see GLAS_REGISTER_FUNCTION
+		 * @see GLAS_MEMBER_REGISTER_FUNCTION
+		 */
+		std::unordered_map<const void*, FunctionId>		FunctionAddressToIdMap	{ };
+
+		/**
+		 * Map between v-table and TypeId in case the type is polymorphic. Type must have been registered.
+		 * @warning experimental feature
+		 */
+		std::unordered_map<const void*, TypeId>			VTableMap				{ };
 	};
 
+	/**
+	 * Get the global data used in the reflection system.
+	 * @see GlobalData
+	 */
 	inline GlobalData& GetGlobalData()
 	{
 		static GlobalData globalData{};
@@ -456,20 +680,66 @@ namespace glas
 	 * HELPER FUNCTIONS
 	 */
 
+	/**
+	 * Register a type into the reflection system.
+	 * @see AutoRegisterType
+	 * @see AutoRegisterTypeOnce
+	 * @see GLAS_TYPE
+	 */
 	template <typename T>
 	const TypeInfo& RegisterType();
 
+	/**
+	 * Register a member variable into the reflection system.
+	 * @param fieldName the name of the member variable
+	 * @param offset the offset of the member variable inside of the owning class
+	 * @param properties custom set properties of the member variable
+	 * @return reference to the generated MemberInfo instance
+	 * @see AutoRegisterMember
+	 * @see GLAS_MEMBER
+	 * @see MemberInfo
+	 */
 	template <typename Class, typename Field>
-	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t Offset, MemberProperties properties = DefaultMemberProperties);
+	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t offset, MemberProperties properties = DefaultMemberProperties);
 
+	/**
+	 * Register a member variable into the reflection system.
+	 * @param MemberId the identifier for the saved variable
+	 * @param fieldName the name of the member variable
+	 * @param offset the offset of the member variable inside of the owning class
+	 * @param size the size of the member variable inside of the owning class
+	 * @param align the alignment of the member variable inside of the owning class
+	 * @param properties custom set properties of the member variable
+	 * @return reference to the generated MemberInfo instance
+	 * @see AutoRegisterMember
+	 * @see GLAS_MEMBER
+	 * @see MemberInfo
+	 */
 	template <typename Class>
-	const MemberInfo& RegisterField(VariableId MemberId, std::string_view fieldName, uint32_t Offset, uint32_t Size, uint32_t Align, MemberProperties properties = DefaultMemberProperties);
+	const MemberInfo& RegisterField(VariableId MemberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align, MemberProperties properties = DefaultMemberProperties);
 
+	/**
+	 * Get the TypeInfo associated with the TypeId. asserts if the type has not been registered yet.
+	 * @param id identifier of the type
+	 * @return const reference to the TypeInfo
+	 * @see TypeInfo
+	 * @see TypeId
+	 */
 	const TypeInfo& GetTypeInfo(TypeId id);
 
+	/**
+	 * Get the TypeInfo associated with the given type T. assert if the type has not been registered yet.
+	 * @return const reference to the TypeInfo
+	 * @see TypeInfo
+	 * @see TypeId
+	 */
 	template <typename T>
 	const TypeInfo& GetTypeInfo();
 
+	/**
+	 * Get access to the unordered map containing all the typeIds and TypeInfos.
+	 * @returns map containing all TypeInfos registered in the program.
+	 */
 	const std::unordered_map<TypeId, TypeInfo>& GetAllTypeInfo();
 
 	template <typename... Types>

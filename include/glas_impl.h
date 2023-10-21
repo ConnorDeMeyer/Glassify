@@ -57,6 +57,11 @@ namespace glas
 		return IsRefOrPointer() ? static_cast<uint32_t>(alignof(void*)) : GetTypeId().GetInfo().Align;
 	}
 
+	constexpr bool MemberInfo::IsPropertySet(MemberProperties property) const
+	{
+		return !!(Properties & property);
+	}
+
 	constexpr bool operator==(TypeId lhs, TypeId rhs)
 	{
 		return lhs.GetId() == rhs.GetId();
@@ -260,7 +265,7 @@ namespace glas
 	}
 
 	template<typename Class, typename Field>
-	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t Offset, MemberProperties properties)
+	const MemberInfo& RegisterField(std::string_view fieldName, uint32_t offset, MemberProperties properties)
 	{
 		auto registerField = RegisterType<Field>();
 
@@ -268,7 +273,7 @@ namespace glas
 			TypeId::Create<Class>(),
 			VariableId::Create<Field>(),
 			fieldName,
-			Offset,
+			offset,
 			sizeof(Field),
 			alignof(Field),
 			properties);
