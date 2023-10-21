@@ -84,20 +84,20 @@ namespace glas
 		void (*Constructor)			(void*)									{ };
 
 		/**
-		 * Function pointer that constructs the type in place at the given address using the move constructor.
-		 * @param 0 address for construction
-		 * @param 1 address of moveable type instance
-		 * @see EnableMoveConstructor
-		 */
-		void (*MoveConstructor)		(void*, void*)							{ };
-
-		/**
 		 * Function pointer that constructs the type in place at the given address using the copy constructor.
 		 * @param 0 address for construction
 		 * @param 1 address of copyable type instance
 		 * @see EnableCopyConstructor
 		 */
 		void (*CopyConstructor)		(void*, const void*)					{ };
+
+		/**
+		 * Function pointer that constructs the type in place at the given address using the move constructor.
+		 * @param 0 address for construction
+		 * @param 1 address of moveable type instance
+		 * @see EnableMoveConstructor
+		 */
+		void (*MoveConstructor)		(void*, void*)							{ };
 
 		/**
 		 * Function pointer that destructs the type at the given address
