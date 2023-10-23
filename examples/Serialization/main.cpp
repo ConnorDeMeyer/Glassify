@@ -106,6 +106,19 @@ GLAS_MEMBER_DEF(TestClass, Deque);
 GLAS_MEMBER_DEF(TestClass, List);
 GLAS_MEMBER_DEF(TestClass, ForList);
 
+struct CustomSerialization
+{
+	void GlasSerialize(std::ostream& /*oStream*/) const{}
+	void GlasDeserialize(std::istream& /*iStream*/){}
+	void GlasSerializeBinary(std::ostream& /*oStream*/) const{}
+	void GlasDeserializeBinary(std::istream& /*iStream*/){}
+};
+
+static_assert(CustomSerializer<CustomSerialization>);
+static_assert(CustomSerializerBinary<CustomSerialization>);
+static_assert(CustomDeserializer<CustomSerialization>);
+static_assert(CustomDeserializerBinary<CustomSerialization>);
+
 //int main()
 //{
 //	GameObject object{};
