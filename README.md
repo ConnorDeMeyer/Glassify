@@ -150,42 +150,85 @@ The newly added variable should then be filled inside of the `TypeInfo::Create()
 
 There are addons that can be toggled on or off by commenting out the `#define` for each addon
 
-## Addons
+# Addons
 Addons are useful features that come with Glassify that can be completely removed from the project if the developer has no need for them
 
-### Serialization
+## Serialization
 
 This features allows the user to serialize a class to either JSon or Binary. The `#define GLAS_SERIALIZATION` macro must be defined inside of the `glas_config.h` file. In order to serialize member variables, the `GLAS_MEMBER` macro must be used to register the member variables into the reflection system.
 
+### Usage
+
 ```cpp
-void SerializeType(std::ostream& stream, const void* data, TypeId type)
-void SerializeType(std::ostream& stream, const TYPE& type)
+glas::Serialization::SerializeType(std::ostream& stream, const void* data, TypeId type)
+glas::Serialization::SerializeType(std::ostream& stream, const TYPE& type)
 ```
 These function allow the user to serialize a type to a stream in JSon format.
 
 ```cpp
-void SerializeTypeBinary(std::ostream& stream, const void* data, TypeId type)
-void SerializeTypeBinary(std::ostream& stream, const TYPE& type)
+glas::Serialization::SerializeTypeBinary(std::ostream& stream, const void* data, TypeId type)
+glas::Serialization::SerializeTypeBinary(std::ostream& stream, const TYPE& type)
 ```
 These function allow the user to serialize a type to a stream in Binary format.
 
 ```cpp
-void DeserializeType(std::istream& stream, void* data, TypeId type)
-void DeserializeType(std::ostream& stream, const TYPE& type)
+glas::Serialization::DeserializeType(std::istream& stream, void* data, TypeId type)
+glas::Serialization::DeserializeType(std::ostream& stream, const TYPE& type)
 ```
 These function allow the user to deserialize a type from a stream that is in JSon format. It will fill the values gotten from the stream into the instance of the type.
 
 ```cpp
-void DeserializeTypeBinary(std::istream& stream, void* data, TypeId type)
-void DeserializeTypeBinary(std::ostream& stream, const TYPE& type)
+glas::Serialization::DeserializeTypeBinary(std::istream& stream, void* data, TypeId type)
+glas::Serialization::DeserializeTypeBinary(std::ostream& stream, const TYPE& type)
 ```
 These function allow the user to deserialize a type from a stream that is in Binary format. It will fill the values gotten from the stream into the instance of the type.
 
-### Storage
+### Customizing
+
+The developer can implement their own type Serialization functions to be used inside of the Serialization system. There are 2 ways to implement serialization for custom types:
+1. Inside of the custom type that wants to be serialized there must exist specific functions with the right naming convention and parameters that the Serialization system can call. This method works great for higher level code (example: GameComponents)
+2. Declare and define the custom serialization functions inside the `glas_serialization_config.h` and the `glas_serialization.h` file. This method must be used when using types that cannot be modified like classes from low level libraries and different frameworks (example: std containers).
+
+Please look at the `glas_serialization.h` file to see examples.
+
+#### Method 1: Serialization defined outside the Serialization System headers.
+To implement serialization for custom types the user must add the following 2 public methods inside of the class for JSon serialization:
+```cpp
+void GlasSerialize(std::ostream& oStream) const;
+void GlasDeserialize(std::istream& iStream);
+```
+and the following 2 for binary serialization:
+```cpp
+void GlasSerializeBinary(std::ostream& oStream) const;
+void GlasDeserializeBinary(std::istream& iStream);
+```
+
+You can query whether the functions are correctly implemented by using the following static asserts:
+```cpp
+static_assert(CustomSerializer<TYPE>);
+static_assert(CustomSerializerBinary<TYPE>);
+static_assert(CustomDeserializer<TYPE>);
+static_assert(CustomDeserializerBinary<TYPE>);
+```
+
+#### Method 2: Serialization defined inside the Serialization System headers
+For this method you must modify the `glas_serialization.h` and `glas_serialization_config.h` files. The serialization functions must be declared before the Serialization System implementation in the `glas_serialization.h` file. The serialization functions are declared inside of the `glas_serialization_config.h` file and they are implemented inside of the `glas_serialization.h` file.
+To add JSon serialization for a custom type, the developer must declare and define the following functions:
+```cpp
+inline void Serialize(std::ostream& stream, const TYPE& value);
+inline void Deserialize(std::istream& stream, TYPE& value);
+```
+To add binary Serialization for a custom type, the following functions must be declared and defined:
+```cpp
+inline void SerializeBinary(std::ostream& stream, const TYPE& value);
+inline void DeserializeBinary(std::istream& stream, TYPE& value);
+```
+
+## Storage
 
 This feature allows the user to store and initialize instances of types at runtime using only the `glas::TypeId`.
 
-#### Type Storage
+### Type Storage
 The `TypeStorage` class allows for the instanciation of any class that has been added to the reflection system. The class will instanciate a given type on the Heap and is responsible for safely destroying them.
 
 #### Type Tuple
