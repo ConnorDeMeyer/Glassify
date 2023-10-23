@@ -742,41 +742,112 @@ namespace glas
 	 */
 	const std::unordered_map<TypeId, TypeInfo>& GetAllTypeInfo();
 
+	/**
+	 * Converts the given types to an std::array<VariableId>.
+	 * @returns std::array<VariableId> containing the variableId representation of the types.
+	 * @see VariableId
+	 */
 	template <typename... Types>
 	constexpr std::array<VariableId, sizeof...(Types)> GetVariableArray();
 
+	/**
+	 * Converts the given types in the std::tuple to an std::array<VariableId>.
+	 * @returns std::array<VariableId> containing the variableId representation of the types.
+	 */
 	template <typename Tuple>
 	constexpr std::array<VariableId, std::tuple_size_v<Tuple>> GetVariableArrayTuple();
 
+	/**
+	 * Register function in the reflection system.
+	 * @param function the function that has to be registered.
+	 * @param name name of the function
+	 * @param properties custom properties of the function.
+	 * @see AutoRegisterFunction
+	 * @see GLAS_FUNCTION
+	 * @see GLAS_FUNCTION_DEF
+	 */
 	template <typename ReturnType, typename ... ParameterTypes>
 	const FunctionInfo& RegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name, FunctionProperties properties);
 
+	/**
+	 * Register member method in the reflection system
+	 * @param function method that has to be registered.
+	 * @param name name of the function
+	 * @param properties custom properties of the method
+	 * @see AutoRegisterMethod
+	 * @see GLAS_METHOD
+	 * @see GLAS_METHOD_DEF
+	 */
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	const FunctionInfo& RegisterMethodFunction(ReturnType(Class::* function)(ParameterTypes...), std::string_view name, FunctionProperties properties);
 
+	/**
+	 * Register const member method in the reflection system
+	 * @param function method that has to be registered.
+	 * @param name name of the function
+	 * @param properties custom properties of the method
+	 * @see AutoRegisterMethod
+	 * @see GLAS_METHOD
+	 * @see GLAS_METHOD_DEF
+	 */
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	const FunctionInfo& RegisterConstMethodFunction(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name, FunctionProperties properties);
 
+	/**
+	 * Calculates a uint64_t hash from the given Types.
+	 * @returns hash of the types.
+	 */
 	template <typename... Types>
 	constexpr uint64_t GetTypesHash();
 
+	/**
+	 * Calculates a hash for a Function. Takes the hash of the ReturnType and ParameterTypes and combines it with the hash of the function name.
+	 * @returns hash of the function.
+	 * @see GetTypeHash
+	 */
 	template <typename ReturnType, typename ... ParameterTypes>
 	uint64_t GetFunctionHash(ReturnType(*function)(ParameterTypes...), std::string_view name);
 
+	/**
+	 * Calculates a hash for a Function. Takes the hash of the ReturnType and ParameterTypes and combines it with the hash of the function name.
+	 * @returns hash of the function.
+	 * @see GetTypeHash
+	 */
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	uint64_t GetFunctionHash(ReturnType(Class::*function)(ParameterTypes...), std::string_view name);
 
+	/**
+	 * Calculates a hash for a Function. Takes the hash of the ReturnType and ParameterTypes and combines it with the hash of the function name.
+	 * @returns hash of the function.
+	 * @see GetTypeHash
+	 */
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
 	uint64_t GetFunctionHash(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name);
 
+	/**
+	 * Get the offset of the Parent class inside of the Child class.
+	 * In case of multiple inheritance the first parent class data sits at offset 0.
+	 * the following parent classes data will start at the offset of the previous ones.
+	 */
 	template <typename Parent, typename Child>
 	constexpr size_t GetClassOffset();
 
+	/**
+	 * Register the Parent-Child relation ship in the reflection system.
+	 * @see GLAS_CHILD
+	 */
 	template <typename Parent, typename Child>
 	constexpr void RegisterChild();
 
 	/** STATIC REGISTRATION*/
 
+	/**
+	 * Will register the Type whenever the variable is constructed.
+	 * When this struct is Initialized as a static or global variable, the type will be registered before the main function.
+	 * @see RegisterType
+	 * @see AutoRegisterTypeOnce
+	 * @see GLAS_TYPE
+	 */
 	template <typename T>
 	struct AutoRegisterType
 	{
@@ -786,6 +857,12 @@ namespace glas
 		}
 	};
 
+	/**
+	 * Will register the Type whenever an instance of AutoRegisterTypeOnce<TYPE> exists.
+	 * @see RegisterType
+	 * @see AutoRegisterType
+	 * @see GLAS_TYPE
+	 */
 	template <typename T>
 	struct AutoRegisterTypeOnce
 	{
@@ -800,6 +877,12 @@ namespace glas
 		inline static AutoRegisterTypeOnce_Internal StaticRegisterType{};
 	};
 
+	/**
+	 * Will register the member variable when the type is constructed using the values inside of the constructor.
+	 * When this struct is initialized as a static or global variable, the member will be registered before the main function.
+	 * @see RegisterField
+	 * @see GLAS_MEMBER
+	 */
 	struct AutoRegisterMember
 	{
 		template <typename Class>
@@ -809,6 +892,12 @@ namespace glas
 		}
 	};
 
+	/**
+	 * Will register the function when an instance of the type is constructed.
+	 * When this struct is initialized as a static or global variable, the function will be registered before the main function.
+	 * @see RegisterFunction
+	 * @see GLAS_FUNCTION
+	 */
 	struct AutoRegisterFunction
 	{
 		template <typename ReturnType, typename ... ParameterTypes>
@@ -818,6 +907,13 @@ namespace glas
 		}
 	};
 
+	/**
+	 * Will register the member method when an instance of the type is constructed.
+	 * When this struct is initialized as a static or global variable, the method will be registered before the main function.
+	 * @see RegisterMethodFunction
+	 * @see RegisterConstMethodFunction
+	 * @see GLAS_MEMBER
+	 */
 	struct AutoRegisterMemberFunction
 	{
 		template <typename Class, typename ReturnType, typename ... ParameterTypes>
@@ -832,6 +928,13 @@ namespace glas
 		}
 	};
 
+	/**
+	 * Will register the parent-child relationship in the reflection system when a instance of the type is constructed.
+	 * When this struct is initialized as a static or global variable, the relationship will be registered before the main function.
+	 * @see RegisterChild
+	 * @see AutoRegisterChildOnce
+	 * @see GLAS_CHILD
+	 */
 	template <typename Parent, typename Child>
 	struct AutoRegisterChild
 	{
@@ -841,6 +944,12 @@ namespace glas
 		}
 	};
 
+	/**
+	 * Will register the parent-child relationship in the reflection system whenever an instance of this class exists.
+	 * @see AutoRegisterChild
+	 * @see RegisterChild
+	 * @see GLAS_CHILD
+	 */
 	template <typename Parent, typename Child>
 	struct AutoRegisterChildOnce
 	{
