@@ -14,10 +14,27 @@ namespace glas
 	struct TypeInfo;
 }
 
+/**
+ * Concepts
+ */
+
 namespace glas::Storage
 {
 	template <typename T>
 	concept Swappable = requires(T & lhs, T & rhs) { std::swap(lhs, rhs); };
+}
+
+/**
+ * Settings
+ */
+
+namespace glas::Storage
+{
+	template <typename T>
+	inline constexpr bool EnableDefaultConstructor = std::is_default_constructible_v<T>;
+
+	template <typename T>
+	inline constexpr bool EnableDestructor = std::is_destructible_v<T>;
 
 	template <typename T>
 	inline constexpr bool EnableCopyConstructor = std::is_copy_constructible_v<T>;
@@ -25,9 +42,18 @@ namespace glas::Storage
 	template <typename T>
 	inline constexpr bool EnableMoveConstructor = std::is_move_constructible_v<T>;
 
+	template <typename T>
+	inline constexpr bool EnableSwapping = Swappable<T>;
+}
+
+#define GLAS_STORAGE_DISABLE_CONSTRUCT(TYPE) template <> inline constexpr bool glas::Storage::EnableDefaultConstructor<TYPE> = false;
+#define GLAS_STORAGE_DISABLE_DESTRUCT(TYPE) template <> inline constexpr bool glas::Storage::EnableDestructor<TYPE> = false;
 #define GLAS_STORAGE_DISABLE_COPY(TYPE) template <> inline constexpr bool glas::Storage::EnableCopyConstructor<TYPE> = false;
 #define GLAS_STORAGE_DISABLE_MOVE(TYPE) template <> inline constexpr bool glas::Storage::EnableMoveConstructor<TYPE> = false;
+#define GLAS_STORAGE_DISABLE_SWAP(TYPE) template <> inline constexpr bool glas::Storage::EnableSwapping<TYPE> = false;
 
+namespace glas::Storage
+{
 	template <typename T>
 	constexpr void FillTypeInfo(TypeInfo& info);
 

@@ -17,7 +17,7 @@ namespace glas::Storage
 	template <typename T>
 	constexpr void FillTypeInfo(TypeInfo& info)
 	{
-		if constexpr (std::is_default_constructible_v<T>)
+		if constexpr (EnableDefaultConstructor<T>)
 			info.Constructor = [](void* location)
 		{
 			new (location) T();
@@ -35,13 +35,13 @@ namespace glas::Storage
 			new (location) T(std::move(*static_cast<T*>(other)));
 		};
 
-		if constexpr (std::is_destructible_v<T>)
+		if constexpr (EnableDestructor<T>)
 			info.Destructor = [](void* data)
 		{
 			static_cast<T*>(data)->~T();
 		};
 
-		if constexpr (Swappable<T>)
+		if constexpr (EnableSwapping<T>)
 			info.Swap = [](void* lhs, void* rhs)
 		{
 			std::swap(*static_cast<T*>(lhs), *static_cast<T*>(rhs));
