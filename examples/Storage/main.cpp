@@ -12,7 +12,7 @@ struct alignas(16) Vector
 	float X{}, Y{}, Z{};
 
 	Vector() = default;
-	Vector(float x, float y, float z) : X{ x }, Y{ y }, Z{ z } {};
+	Vector(float x, float y, float z) : X{ x }, Y{ y }, Z{ z } {}
 };
 
 GLAS_TYPE(Vector);

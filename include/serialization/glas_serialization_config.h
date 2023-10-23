@@ -41,6 +41,24 @@ namespace glas::Serialization
 	concept CustomDeserializerBinary = requires(T * val, std::istream stream) { val->GlasDeserializeBinary(stream); };
 }
 
+/** DEFAULT SERIALIZATION */
+namespace glas::Serialization
+{
+	void Serialize(std::ostream& stream, const void* data, TypeId type);
+	void Deserialize(std::istream& stream, void* data, TypeId type);
+	void SerializeBinary(std::ostream& stream, const void* data, TypeId type);
+	void DeserializeBinary(std::istream& stream, void* data, TypeId type);
+
+	template <typename T>
+	void Serialize(std::ostream& stream, const T& value);
+	template <typename T>
+	void Deserialize(std::istream& stream, T& value);
+	template <typename T>
+	void SerializeBinary(std::ostream& stream, const T& value);
+	template <typename T>
+	void DeserializeBinary(std::istream& stream, T& value);
+}
+
 /** STRING */
 #if defined(GLAS_SERIALIZATION_STRING) || defined(_STRING_)
 #include <string>
@@ -328,20 +346,3 @@ namespace glas::Serialization
 #endif
 
 
-/** DEFAULT SERIALIZATION */
-namespace glas::Serialization
-{
-	void Serialize(std::ostream& stream, const void* data, TypeId type);
-	void Deserialize(std::istream& stream, void* data, TypeId type);
-	void SerializeBinary(std::ostream& stream, const void* data, TypeId type);
-	void DeserializeBinary(std::istream& stream, void* data, TypeId type);
-
-	template <typename T>
-	void Serialize(std::ostream& stream, const T& value);
-	template <typename T>
-	void Deserialize(std::istream& stream, T& value);
-	template <typename T>
-	void SerializeBinary(std::ostream& stream, const T& value);
-	template <typename T>
-	void DeserializeBinary(std::istream& stream, T& value);
-}

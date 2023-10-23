@@ -1,6 +1,11 @@
 ﻿#pragma once
 #include <type_traits>
 
+/**
+ * This is a utility header file for enum classes that will enable bit operations on enums.
+ * To enable this feature on any enum use the GLAS_ENUM_BIT(ENUM) macro
+ */
+
 template <typename Enum>
 inline constexpr bool EnumEnableBitOperations = false;
 
