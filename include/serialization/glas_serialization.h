@@ -13,7 +13,7 @@
 namespace glas::Serialization
 {
 	template <typename T>
-	constexpr void FillFunctionInfo(TypeInfo& info)
+	constexpr void FillTypeInfo(TypeInfo& info)
 	{
 		if constexpr (CustomSerializer<T>) info.Serializer = [](std::ostream& stream, const void* data) { static_cast<const T*>(data)->GlasSerialize(stream); };
 		else info.Serializer = [](std::ostream& stream, const void* data) { Serialize(stream, *static_cast<const T*>(data)); };

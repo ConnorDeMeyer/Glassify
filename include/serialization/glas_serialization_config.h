@@ -26,7 +26,7 @@ namespace glas
 namespace glas::Serialization
 {
 	template <typename T>
-	constexpr void FillFunctionInfo(TypeInfo& info);
+	constexpr void FillTypeInfo(TypeInfo& info);
 }
 
 namespace glas::Serialization

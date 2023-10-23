@@ -212,11 +212,11 @@ namespace glas
 		}
 
 #ifdef GLAS_STORAGE
-		Storage::FillFunctionInfo<T>(info);
+		Storage::FillTypeInfo<T>(info);
 #endif 
 
 #ifdef GLAS_SERIALIZATION
-		Serialization::FillFunctionInfo<T>(info);
+		Serialization::FillTypeInfo<T>(info);
 #endif 
 
 		/**
