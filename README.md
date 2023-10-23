@@ -228,8 +228,23 @@ inline void DeserializeBinary(std::istream& stream, TYPE& value);
 
 This feature allows the user to store and initialize instances of types at runtime using only the `glas::TypeId`.
 
+### Settings
+
+
 ### Type Storage
-The `TypeStorage` class allows for the instanciation of any class that has been added to the reflection system. The class will instanciate a given type on the Heap and is responsible for safely destroying them.
+Similarly to an std::unique_ptr, the `TypeStorage` class allows for the instanciation of any class that has been added to the reflection system. The class will instanciate a given type on the Heap and is responsible for safely destroying them.
+
+### Shared Type Storage
+
+Similarly to an std::shared_ptr, the `SharedTypeStorage` class allows instanciation of any class that has been added to the reflection system and can be easily copied and shared without the type instance going out of scope.
+
+### Weak Type Storage
+
+Similarly to an std::weak_ptr, the `WeakTypeStorage` class needs to `SharedTypeStorage` to initialize and will hold a reference to that instance until there are no more shared type storages left.
+
+### Type Vector
+
+Similarly to an std::vector, the `TypeVector` stores a contigious array of instances of a type. this vector can be freely added to, removed from and queried. There are also iterator that can be used to iterator over the elements. The whole vector is typles and will store only data. The user is responsible for interpreting the data.
 
 #### Type Tuple
 The `TypeTuple` class works similarly to a `std::tuple` class but typeless. It stores multiple instances of types and keeps track of the types inside using an array of `VariableId`s. It can be used to call functions and can be serialized too.
