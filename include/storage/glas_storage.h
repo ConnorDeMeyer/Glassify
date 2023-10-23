@@ -15,7 +15,7 @@
 namespace glas::Storage
 {
 	template <typename T>
-	constexpr void FillFunctionInfo(TypeInfo& info)
+	constexpr void FillTypeInfo(TypeInfo& info)
 	{
 		if constexpr (std::is_default_constructible_v<T>)
 			info.Constructor = [](void* location)
@@ -107,13 +107,19 @@ namespace glas::Storage
 	template <typename T>
 	TypeStorage TypeStorage::Construct() requires std::is_default_constructible_v<T>
 	{
-		AutoRegisterTypeOnce<T> RegisterType{};
-
-		TypeStorage storage;
-		storage.m_TypeId = TypeId::Create<T>();
-		storage.m_Data = std::make_unique<uint8_t[]>(sizeof(T));
+		auto storage = Initialize<T>();
 
 		new (storage.m_Data.get()) T();
+
+		return storage;
+	}
+
+	template <typename T, typename ... Parameters>
+	TypeStorage TypeStorage::Construct(Parameters&&... parameters)
+	{
+		auto storage = Initialize<T>();
+
+		new (storage.m_Data.get()) T(std::forward<Parameters>(parameters)...);
 
 		return storage;
 	}
@@ -121,11 +127,7 @@ namespace glas::Storage
 	template <typename T>
 	TypeStorage TypeStorage::CopyConstruct(const T& value) requires std::is_copy_constructible_v<T>
 	{
-		AutoRegisterTypeOnce<T> RegisterType{};
-
-		TypeStorage storage;
-		storage.m_TypeId = TypeId::Create<T>();
-		storage.m_Data = std::make_unique<uint8_t[]>(sizeof(T));
+		auto storage = Initialize<T>();
 
 		new (storage.m_Data.get()) T(value);
 
@@ -135,13 +137,9 @@ namespace glas::Storage
 	template <typename T>
 	TypeStorage TypeStorage::MoveConstruct(T&& value) requires std::is_move_constructible_v<T>
 	{
-		AutoRegisterTypeOnce<T> RegisterType{};
+		auto storage = Initialize<T>();
 
-		TypeStorage storage;
-		storage.m_TypeId = TypeId::Create<T>();
-		storage.m_Data = std::make_unique<uint8_t[]>(sizeof(T));
-
-		new (storage.m_Data.get()) T(std::move(value));
+		new (storage.m_Data.get()) T(value);
 
 		return storage;
 	}
@@ -183,9 +181,11 @@ namespace glas::Storage
 	template <typename T>
 	std::unique_ptr<T> TypeStorage::TransferOwnershipCheck()
 	{
-		assert(glas::TypeId::Create<T>() == m_TypeId);
+		if (glas::TypeId::Create<T>() != m_TypeId)
+			throw std::runtime_error("Given type does not match stored type");
+
 		m_TypeId = {};
-		return std::unique_ptr<T>{reinterpret_cast<T*&>(m_Data.release())};
+		return std::unique_ptr<T>{reinterpret_cast<T*>(m_Data.release())};
 	}
 
 	template <typename T>
@@ -193,6 +193,18 @@ namespace glas::Storage
 	{
 		m_TypeId = {};
 		return std::unique_ptr<T>{reinterpret_cast<T*>(m_Data.release())};
+	}
+
+	template <typename T>
+	TypeStorage TypeStorage::Initialize()
+	{
+		AutoRegisterTypeOnce<T> RegisterType{};
+
+		TypeStorage storage;
+		storage.m_TypeId = TypeId::Create<T>();
+		storage.m_Data = std::make_unique<uint8_t[]>(sizeof(T));
+
+		return storage;
 	}
 
 	/**
@@ -223,13 +235,19 @@ namespace glas::Storage
 	template <typename T>
 	SharedTypeStorage SharedTypeStorage::Construct() requires std::is_default_constructible_v<T>
 	{
-		AutoRegisterTypeOnce<T> RegisterType{};
-
-		SharedTypeStorage storage;
-		storage.m_TypeId = TypeId::Create<T>();
-		storage.m_Data = std::make_shared<uint8_t[]>(sizeof(T));
+		auto storage = Initialize<T>();
 
 		new (storage.m_Data.get()) T();
+
+		return storage;
+	}
+
+	template <typename T, typename ... Parameters>
+	SharedTypeStorage SharedTypeStorage::Construct(Parameters&&... parameters)
+	{
+		auto storage = Initialize<T>();
+
+		new (storage.m_Data.get()) T(parameters...);
 
 		return storage;
 	}
@@ -237,11 +255,7 @@ namespace glas::Storage
 	template <typename T>
 	SharedTypeStorage SharedTypeStorage::CopyConstruct(const T& value) requires std::is_copy_constructible_v<T>
 	{
-		AutoRegisterTypeOnce<T> RegisterType{};
-
-		SharedTypeStorage storage;
-		storage.m_TypeId = TypeId::Create<T>();
-		storage.m_Data = std::make_unique<uint8_t[]>(sizeof(T));
+		auto storage = Initialize<T>();
 
 		new (storage.m_Data.get()) T(value);
 
@@ -251,13 +265,9 @@ namespace glas::Storage
 	template <typename T>
 	SharedTypeStorage SharedTypeStorage::MoveConstruct(T&& value) requires std::is_move_constructible_v<T>
 	{
-		AutoRegisterTypeOnce<T> RegisterType{};
+		auto storage = Initialize<T>();
 
-		SharedTypeStorage storage;
-		storage.m_TypeId = TypeId::Create<T>();
-		storage.m_Data = std::make_unique<uint8_t[]>(sizeof(T));
-
-		new (storage.m_Data.get()) T(std::move(value));
+		new (storage.m_Data.get()) T(value);
 
 		return storage;
 	}
@@ -301,6 +311,18 @@ namespace glas::Storage
 	T* SharedTypeStorage::As()
 	{
 		return (TypeId::Create<T>() == m_TypeId) ? static_cast<T*>(GetData()) : nullptr;
+	}
+
+	template <typename T>
+	SharedTypeStorage SharedTypeStorage::Initialize()
+	{
+		AutoRegisterTypeOnce<T> RegisterType{};
+
+		SharedTypeStorage storage;
+		storage.m_TypeId = TypeId::Create<T>();
+		storage.m_Data = std::make_unique<uint8_t[]>(sizeof(T));
+
+		return storage;
 	}
 
 	/**
@@ -350,24 +372,41 @@ namespace glas::Storage
 	static_assert(GetOffset(8, 8, 17) == 24);
 
 	template <size_t Index, typename... Types>
-	void FillDataCopy(TypeTuple& typeTuple, const std::tuple<Types...>& tuple)
+	void InitializeDataTupleCopy(TypeTuple& typeTuple, const std::tuple<Types...>& tuple)
 	{
-		using Type = std::tuple_element_t<Index, std::tuple<Types...>>;
-		typeTuple.Get<Type>(Index) = std::get<Index>(tuple);
+		using Type = std::remove_reference_t<std::tuple_element_t<Index, std::tuple<Types...>>>;
+
+		new (typeTuple.GetVoid(Index)) Type(std::get<Index>(tuple));
+		//typeTuple.Get<Type>(Index) = std::get<Index>(tuple);
 		if constexpr (Index + 1 < sizeof...(Types))
 		{
-			FillDataCopy<Index + 1, Types...>(typeTuple, tuple);
+			InitializeDataTupleCopy<Index + 1, Types...>(typeTuple, tuple);
 		}
 	}
 
 	template <size_t Index, typename... Types>
-	void FillDataMove(TypeTuple& typeTuple, std::tuple<Types...>&& tuple)
+	void InitializeDataTupleMove(TypeTuple& typeTuple, std::tuple<Types...>&& tuple)
 	{
-		using Type = std::tuple_element_t<Index, std::tuple<Types...>>;
-		typeTuple.Get<Type>(Index) = std::move(std::get<Index>(tuple));
+		using Type = std::remove_reference_t<std::tuple_element_t<Index, std::tuple<Types...>>>;
+
+		new (typeTuple.GetVoid(Index)) Type(std::move(std::get<Index>(tuple)));
+		//typeTuple.Get<Type>(Index) = std::move(std::get<Index>(tuple));
 		if constexpr (Index + 1 < sizeof...(Types))
 		{
-			FillDataMove<Index + 1, Types...>(typeTuple, std::move(tuple));
+			InitializeDataTupleMove<Index + 1, Types...>(typeTuple, std::move(tuple));
+		}
+	}
+
+	template <size_t Index, typename T, typename ... Types>
+	void InitializeDataMove(TypeTuple& typeTuple, T&& val, Types&&... vals)
+	{
+		using Type = std::remove_reference_t<T>;
+
+		new (typeTuple.GetVoid(Index)) Type(std::forward<T>(val));
+
+		if constexpr (sizeof...(Types) > 0)
+		{
+			InitializeDataMove<Index + 1, Types...>(typeTuple, std::forward<Types>(vals)...);
 		}
 	}
 
@@ -396,7 +435,7 @@ namespace glas::Storage
 	{
 		auto variables = GetVariableArray<T...>();
 		Initialize(variables, false);
-		FillDataCopy<0, T...>(*this, tuple);
+		InitializeDataTupleCopy<0, T...>(*this, tuple);
 	}
 
 	template <typename ... T>
@@ -404,7 +443,7 @@ namespace glas::Storage
 	{
 		auto variables = GetVariableArray<T...>();
 		Initialize(variables, false);
-		FillDataMove<0, T...>(*this, std::move(tuple));
+		InitializeDataTupleMove<0, T...>(*this, std::move(tuple));
 	}
 
 	template <typename ... T>
@@ -426,7 +465,13 @@ namespace glas::Storage
 	template <typename ... T>
 	TypeTuple TypeTuple::Create(T&&... val)
 	{
-		return TypeTuple(std::tuple<T...>(std::move(val)...));
+		TypeTuple tuple;
+		auto variables = GetVariableArray<T...>();
+		tuple.Initialize(variables, false);
+
+		InitializeDataMove<0, T...>(tuple, std::forward<T>(val)...);
+
+		return tuple;
 	}
 
 	template <typename ... T>
@@ -443,7 +488,7 @@ namespace glas::Storage
 	template <typename ... T>
 	TypeTuple TypeTuple::CreateNoReferences(T&&... val)
 	{
-		return TypeTuple(std::tuple<std::remove_reference_t<T>...>(std::move(val)...));
+		return TypeTuple(std::tuple<std::remove_reference_t<T>...>(std::forward<T>(val)...));
 	}
 
 	inline TypeTuple TypeTuple::CreateNoReferences(std::span<const VariableId> variables)
@@ -485,10 +530,14 @@ namespace glas::Storage
 		// Get the max alignment of all the classes
 		const uint32_t structAlignment = CalculateAlignment(variables);
 
-		// Calculate the final size of the datas
+		// Check the variables and calculate the final size of the data
 		uint32_t DataSize{};
 		for (auto& var : variables)
 		{
+			// because refs and rVal Refs cannot be stored, we store the while variable instead
+			var.RemoveReferenceFlag();
+			var.RemoveRValReferenceFlag();
+
 			DataSize = GetOffset(structAlignment, var.GetAlign(), DataSize) + var.GetSize();
 		}
 
@@ -636,30 +685,47 @@ namespace glas::Storage
 		}
 	}
 
+	inline TypeVector::TypeVector(TypeId type)
+		: m_ContainedType{ type }
+		, m_ElementSize{ type.GetInfo().Size }
+	{
+		assert(type.IsValid());
+		assert(AssertType(type));
+	}
+
 	template <typename T>
-	TypeVector::TypeVector(size_t count)
-		: TypeVector(TypeId::Create<T>(), count)
-	{}
+	TypeVector TypeVector::Create()
+	{
+		return TypeVector{ TypeId::Create<T>() };
+	}
+
+	template <typename T>
+	TypeVector TypeVector::Create(size_t count)
+	{
+		return TypeVector{ TypeId::Create<T>(), count };
+	}
 
 	template <typename T>
 	TypeVector::TypeVector(size_t count, const T& value)
 		: TypeVector(TypeId::Create<T>(), count, &value)
 	{}
 
-	template <typename T>
-	TypeVector::TypeVector(std::initializer_list<T> initializer)
-		: m_ContainedType{ TypeId::Create<T>() }
-		, m_ElementSize{ sizeof(T) }
-	{
-		assert(AssertType(TypeId::Create<T>));
-
-		ResizeUninitialized(initializer.size());
-
-		for (size_t i{}; i < initializer.size(); ++i)
-		{
-			*static_cast<T*>((*this)[i]) = initializer[i];
-		}
-	}
+	//template <typename T>
+	//TypeVector::TypeVector(std::initializer_list<T> initializer)
+	//	: m_ContainedType{ TypeId::Create<T>() }
+	//	, m_ElementSize{ sizeof(T) }
+	//{
+	//	assert(AssertType(TypeId::Create<T>()));
+	//
+	//	ResizeUninitialized(initializer.size());
+	//
+	//	size_t index{};
+	//	for (auto& element : initializer)
+	//	{
+	//		*static_cast<T*>((*this)[index]) = element;
+	//		++index;
+	//	}
+	//}
 
 	inline TypeVector& TypeVector::operator=(const TypeVector& other)
 	{
@@ -699,30 +765,30 @@ namespace glas::Storage
 
 	inline const void* TypeVector::At(size_t index) const
 	{
-		if (index < Size())
+		if (index >= Size())
 			throw std::out_of_range("index out of range");
 
-		return m_Data.get() + index * m_ElementSize;
+		return ElementAddress(index);
 	}
 
 	inline void* TypeVector::At(size_t index)
 	{
-		if (index < Size())
+		if (index >= Size())
 			throw std::out_of_range("index out of range");
 
-		return m_Data.get() + index * m_ElementSize;
+		return ElementAddress(index);
 	}
 
 	inline const void* TypeVector::operator[](size_t index) const
 	{
 		assert(index < Size());
-		return m_Data.get() + index * m_ElementSize;
+		return ElementAddress(index);
 	}
 
 	inline void* TypeVector::operator[](size_t index)
 	{
 		assert(index < Size());
-		return m_Data.get() + index * m_ElementSize;
+		return ElementAddress(index);
 	}
 
 	inline void TypeVector::ShrinkToFit()
@@ -745,6 +811,25 @@ namespace glas::Storage
 		}
 	}
 
+	inline void* TypeVector::PushBack()
+	{
+		if (Size() >= Capacity())
+		{
+			ResizeZeroed(CalculateNewSize());
+		}
+
+		const auto& info = m_ContainedType.GetInfo();
+		const auto& constructor = info.Constructor;
+
+		assert(constructor);
+
+		++m_Size;
+		void* back = Back();
+
+		constructor(back);
+		return back;
+	}
+
 	inline void* TypeVector::PushBackCopy(const void* data)
 	{
 		if (Size() >= Capacity())
@@ -754,6 +839,8 @@ namespace glas::Storage
 
 		const auto& info = m_ContainedType.GetInfo();
 		const auto& copyConstructor = info.CopyConstructor;
+
+		assert(copyConstructor);
 
 		++m_Size;
 		void* back = Back();
@@ -771,6 +858,8 @@ namespace glas::Storage
 
 		const auto& info = m_ContainedType.GetInfo();
 		const auto& moveConstructor = info.MoveConstructor;
+
+		assert(moveConstructor);
 
 		++m_Size;
 		void* back = Back();
@@ -836,7 +925,7 @@ namespace glas::Storage
 		const size_t originalSize = Size();
 		ResizeUninitialized(size);
 
-		std::memset((*this)[originalSize], 0, (size - originalSize) * ElementSize());
+		std::memset(ElementAddress(originalSize), 0, (size - originalSize) * ElementSize());
 	}
 
 	inline void TypeVector::ResizeUninitialized(size_t size)
@@ -854,9 +943,19 @@ namespace glas::Storage
 		SetBuffer(std::move(newBuffer), size);
 	}
 
-	inline void TypeVector::SwapRemove(size_t )
+	inline void TypeVector::SwapRemove(size_t index)
 	{
-		assert(false && "Not yet implemented");
+		const auto& info = m_ContainedType.GetInfo();
+		const auto& swap = info.Swap;
+
+		assert(swap);
+
+		if (index != Size() - 1)
+		{
+			swap((*this)[index], Back());
+		}
+
+		PopBack();
 	}
 
 	inline bool TypeVector::AssertType(TypeId id)
@@ -870,9 +969,11 @@ namespace glas::Storage
 		const auto& info = m_ContainedType.GetInfo();
 		const auto& moveConstructor = info.MoveConstructor;
 
+		assert(moveConstructor);
+
 		for (size_t i{}; i < Size(); ++i)
 		{
-			const size_t elementOffset = i + m_ElementSize;
+			const size_t elementOffset = i * m_ElementSize;
 			moveConstructor(buffer.get() + elementOffset, Data() + elementOffset);
 		}
 	}
@@ -886,6 +987,11 @@ namespace glas::Storage
 	{
 		m_Data = std::move(buffer);
 		m_Capacity = elementAmount;
+	}
+
+	inline void* TypeVector::ElementAddress(size_t index) const
+	{
+		return m_Data.get() + index * m_ElementSize;
 	}
 
 	constexpr size_t TypeVector::CalculateNewSize() const

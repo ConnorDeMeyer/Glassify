@@ -29,7 +29,7 @@ namespace glas::Storage
 #define GLAS_STORAGE_DISABLE_MOVE(TYPE) template <> inline constexpr bool glas::Storage::EnableMoveConstructor<TYPE> = false;
 
 	template <typename T>
-	constexpr void FillFunctionInfo(TypeInfo& info);
+	constexpr void FillTypeInfo(TypeInfo& info);
 
 	class TypeStorage final
 	{
@@ -46,6 +46,9 @@ namespace glas::Storage
 
 		template <typename T>
 		static TypeStorage Construct() requires std::is_default_constructible_v<T>;
+
+		template <typename T, typename ... Parameters>
+		static TypeStorage Construct(Parameters&&... parameters);
 
 		template <typename T>
 		static TypeStorage CopyConstruct(const T& value) requires std::is_copy_constructible_v<T>;
@@ -71,6 +74,10 @@ namespace glas::Storage
 		std::unique_ptr<T> TransferOwnershipUnsafe();
 
 	private:
+		template <typename T>
+		static TypeStorage Initialize();
+
+	private:
 		std::unique_ptr<uint8_t[]> m_Data{};
 		TypeId m_TypeId{};
 	};
@@ -92,6 +99,9 @@ namespace glas::Storage
 		template <typename T>
 		static SharedTypeStorage Construct() requires std::is_default_constructible_v<T>;
 
+		template <typename T, typename ... Parameters>
+		static SharedTypeStorage Construct(Parameters&&... parameters);
+
 		template <typename T>
 		static SharedTypeStorage CopyConstruct(const T& value) requires std::is_copy_constructible_v<T>;
 
@@ -109,6 +119,11 @@ namespace glas::Storage
 
 		template <typename T>
 		T* As();
+
+	private:
+		template <typename T>
+		static SharedTypeStorage Initialize();
+
 	private:
 		std::shared_ptr<uint8_t[]> m_Data{};
 		TypeId m_TypeId{};
@@ -324,20 +339,26 @@ namespace glas::Storage
 	class TypeVector final
 	{
 	public:
-		TypeVector() = default;
+		TypeVector() = delete;
 		~TypeVector();
 
 		TypeVector(const TypeVector& other);
 		TypeVector(TypeVector&& other) noexcept;
 
+		TypeVector(TypeId type);
 		TypeVector(TypeId type, size_t count);
 		TypeVector(size_t count, const TypeStorage& value);
 		TypeVector(TypeId type, size_t count, const void* value);
 
-		template <typename T> TypeVector(size_t count);
+		template <typename T>
+		static TypeVector Create();
+
+		template <typename T>
+		static TypeVector Create(size_t count);
+
 		template <typename T> TypeVector(size_t count, const T& value);
 
-		template <typename T> TypeVector(std::initializer_list<T> initializer);
+		//template <typename T> explicit TypeVector(std::initializer_list<T> initializer);
 
 		TypeVector& operator=(const TypeVector& other);
 		TypeVector& operator=(TypeVector&& other) noexcept;
@@ -380,6 +401,7 @@ namespace glas::Storage
 
 	public: // Modifiers
 
+		void*						PushBack				();
 		void*						PushBackCopy			(const void* data);
 		void*						PushBackMove			(void* data);
 		void						PopBack					();
@@ -396,6 +418,7 @@ namespace glas::Storage
 		std::unique_ptr<uint8_t[]>	CreateNewBuffer	(size_t size)	const;
 		void						SetBuffer		(std::unique_ptr<uint8_t[]>&& buffer, size_t elementAmount);
 		constexpr size_t			CalculateNewSize()				const;
+		void*						ElementAddress	(size_t index)	const;
 
 	private:
 		TypeId						m_ContainedType	{ };

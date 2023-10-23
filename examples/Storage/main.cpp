@@ -10,6 +10,9 @@
 struct alignas(16) Vector
 {
 	float X{}, Y{}, Z{};
+
+	Vector() = default;
+	Vector(float x, float y, float z) : X{ x }, Y{ y }, Z{ z } {};
 };
 
 GLAS_TYPE(Vector);
@@ -47,6 +50,8 @@ public:
 	auto& GetName() { return Name; }
 	auto& GetId() { return Id; }
 	GameObject& Randomize();
+
+	void SetName(std::string name) { Name = std::move(name); }
 private:
 	Transform Transform{};
 	std::string Name{ "None" };
@@ -136,12 +141,284 @@ GameObject& GameObject::Randomize()
 	return *this;
 }
 
+struct CleanupTester
+{
+	CleanupTester(bool& aliveCheck) : IsAlive{ &aliveCheck } { assert(aliveCheck == false); *IsAlive = true; }
+
+	~CleanupTester()
+	{
+		if (IsAlive)
+		{
+			assert(*IsAlive == true);
+			*IsAlive = false;
+		}
+	}
+
+	CleanupTester(CleanupTester&& other) noexcept
+		: IsAlive{ other.IsAlive }
+	{
+		other.IsAlive = nullptr;
+	}
+
+	CleanupTester& operator=(CleanupTester&& other) noexcept
+	{
+		std::swap(IsAlive, other.IsAlive);
+		return *this;
+	}
+
+	bool* IsAlive;
+};
+
+struct NonCopyableType
+{
+	NonCopyableType() = default;
+	NonCopyableType(const NonCopyableType&) = delete;
+	NonCopyableType(NonCopyableType&&) noexcept = default;
+	NonCopyableType& operator=(const NonCopyableType&) = delete;
+	NonCopyableType& operator=(NonCopyableType&&) noexcept = default;
+
+	NonCopyableType(int, int&, const int&, int&&) {}
+};
+
+GLAS_TYPE(CleanupTester);
+
 using namespace glas::Storage;
 
 TEST_CASE("Type Storage", "[TypeStorage]")
 {
-	auto storage = TypeStorage::CopyConstruct<int>(6);
-	REQUIRE(*storage.As<int>() == 6);
+	SECTION("As")
+	{
+		auto storage = TypeStorage::CopyConstruct<int>(6);
+		REQUIRE(*storage.As<int>() == 6);
+	}
+
+	SECTION("Construct")
+	{
+		auto defaultVector = TypeStorage::Construct<Vector>();
+		REQUIRE(defaultVector.As<Vector>()->X == 0);
+
+		auto InitializedVector = TypeStorage::Construct<Vector>(4.f, 2.f, 1.f);
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+			
+		{
+			int test{};
+			TypeStorage::Construct<NonCopyableType>(1, test, 2, 3);
+		}
+	}
+
+	SECTION("Construct Type ID")
+	{
+		auto defaultVector = TypeStorage(glas::TypeId::Create<Vector>());
+		REQUIRE(defaultVector.As<Vector>()->X == 0);
+	}
+
+	SECTION("Copy Construct")
+	{
+		auto vectorOriginal = Vector{ 4.f, 2.f, 1.f };
+		auto InitializedVector = TypeStorage::CopyConstruct<Vector>(vectorOriginal);
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+	}
+
+	SECTION("Copy Construct Type ID")
+	{
+		auto vectorOriginal = Vector{ 4.f, 2.f, 1.f };
+		auto InitializedVector = TypeStorage::CopyConstruct(glas::TypeId::Create<Vector>(), &vectorOriginal);
+
+		REQUIRE(vectorOriginal.X == 4.f);
+		REQUIRE(vectorOriginal.Y == 2.f);
+		REQUIRE(vectorOriginal.Z == 1.f);
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+	}
+
+	SECTION("Move Construct")
+	{
+		{
+			auto vectorOriginal = Vector{ 4.f, 2.f, 1.f };
+			auto InitializedVector = TypeStorage::MoveConstruct<Vector>(std::move(vectorOriginal));
+
+			REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+			REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+			REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+		}
+		{
+			auto vectorOriginal = Scene{};
+			auto InitializedVector = TypeStorage::MoveConstruct<Scene>(std::move(vectorOriginal));
+		}
+	}
+
+	SECTION("Move Construct ID")
+	{
+		auto vectorOriginal = Vector{ 4.f, 2.f, 1.f };
+		auto InitializedVector = TypeStorage::MoveConstruct(glas::TypeId::Create<Vector>(), &vectorOriginal);
+
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+	}
+
+	SECTION("Construct Memory Management")
+	{
+		bool isAlive{};
+		{
+			auto tester = TypeStorage::Construct<CleanupTester>(isAlive);
+			REQUIRE(isAlive == true);
+		}
+		REQUIRE(isAlive == false);
+	}
+
+	SECTION("TransferOwnershipCheck")
+	{
+		bool isAlive{};
+		{
+			auto tester = TypeStorage::Construct<CleanupTester>(isAlive);
+			REQUIRE(isAlive == true);
+
+			auto newOwner = tester.TransferOwnershipCheck<CleanupTester>();
+			REQUIRE(isAlive == true);
+		}
+		REQUIRE(isAlive == false);
+
+		{
+			auto vectorStorage = TypeStorage::Construct<Vector>();
+			REQUIRE_THROWS(vectorStorage.TransferOwnershipCheck<bool>());
+		}
+	}
+
+	SECTION("TransferOwnershipUnsafe")
+	{
+		bool isAlive{};
+		{
+			auto tester = TypeStorage::Construct<CleanupTester>(isAlive);
+			REQUIRE(isAlive == true);
+
+			auto newOwner = tester.TransferOwnershipUnsafe<CleanupTester>();
+			REQUIRE(isAlive == true);
+		}
+		REQUIRE(isAlive == false);
+	}
+}
+
+TEST_CASE("Shared Type Storage", "[SharedTypeStorage]")
+{
+	SECTION("As")
+	{
+		auto storage = SharedTypeStorage::CopyConstruct<int>(6);
+		REQUIRE(*storage.As<int>() == 6);
+	}
+
+	SECTION("Construct")
+	{
+		auto defaultVector = SharedTypeStorage::Construct<Vector>();
+		REQUIRE(defaultVector.As<Vector>()->X == 0);
+
+		auto InitializedVector = SharedTypeStorage::Construct<Vector>(4.f, 2.f, 1.f);
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+	}
+
+	SECTION("Construct Type ID")
+	{
+		auto defaultVector = SharedTypeStorage(glas::TypeId::Create<Vector>());
+		REQUIRE(defaultVector.As<Vector>()->X == 0);
+	}
+
+	SECTION("Copy Construct")
+	{
+		auto vectorOriginal = Vector{ 4.f, 2.f, 1.f };
+		auto InitializedVector = SharedTypeStorage::CopyConstruct<Vector>(vectorOriginal);
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+	}
+
+	SECTION("Copy Construct Type ID")
+	{
+		auto vectorOriginal = Vector{ 4.f, 2.f, 1.f };
+		auto InitializedVector = SharedTypeStorage::CopyConstruct(glas::TypeId::Create<Vector>(), &vectorOriginal);
+
+		REQUIRE(vectorOriginal.X == 4.f);
+		REQUIRE(vectorOriginal.Y == 2.f);
+		REQUIRE(vectorOriginal.Z == 1.f);
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+	}
+
+	SECTION("Move Construct")
+	{
+		auto vectorOriginal = Vector{ 4.f, 2.f, 1.f };
+		auto InitializedVector = SharedTypeStorage::MoveConstruct<Vector>(std::move(vectorOriginal));
+
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+	}
+
+	SECTION("Move Construct ID")
+	{
+		auto vectorOriginal = Vector{ 4.f, 2.f, 1.f };
+		auto InitializedVector = SharedTypeStorage::MoveConstruct(glas::TypeId::Create<Vector>(), &vectorOriginal);
+
+		REQUIRE(InitializedVector.As<Vector>()->X == 4.f);
+		REQUIRE(InitializedVector.As<Vector>()->Y == 2.f);
+		REQUIRE(InitializedVector.As<Vector>()->Z == 1.f);
+	}
+
+	SECTION("Construct Memory Management")
+	{
+		bool isAlive{};
+		{
+			auto tester = SharedTypeStorage::Construct<CleanupTester>(isAlive);
+			REQUIRE(isAlive == true);
+		}
+		REQUIRE(isAlive == false);
+	}
+
+	SECTION("Sharing Memory Management")
+	{
+		bool isAlive{};
+		{
+			auto tester = SharedTypeStorage::Construct<CleanupTester>(isAlive);
+			REQUIRE(isAlive == true);
+			{
+				auto tester2 = tester;
+				REQUIRE(isAlive == true);
+			}
+			REQUIRE(isAlive == true);
+		}
+		REQUIRE(isAlive == false);
+	}
+}
+
+TEST_CASE("Weak Type Storage", "[WeakTypeStorage]")
+{
+	SECTION("Sharing Memory Management")
+	{
+		WeakTypeStorage invalidTester;
+
+		bool isAlive{};
+		{
+			auto tester = SharedTypeStorage::Construct<CleanupTester>(isAlive);
+			REQUIRE(isAlive == true);
+			{
+				auto weakTester = WeakTypeStorage(tester);
+				REQUIRE(isAlive == true);
+			}
+			REQUIRE(isAlive == true);
+
+			invalidTester = tester;
+		}
+		REQUIRE(isAlive == false);
+
+		REQUIRE(invalidTester.Expired());
+	}
 }
 
 TEST_CASE("Type Tuple", "[TypeTuple]")
@@ -220,5 +497,125 @@ TEST_CASE("Type Tuple", "[TypeTuple]")
 		REQUIRE(tuple.Get<GameObject>(0).GetTransform().Rotation.X == 5.f);
 		REQUIRE(tuple.Get<int>(1) == 200);
 		REQUIRE(tuple.Get<double>(2) == 50);
+	}
+
+	SECTION("Memory management")
+	{
+		bool testBool0{ false };
+		bool testBool1{ false };
+
+		{
+			auto tester = TypeTuple::Create(
+				CleanupTester{ testBool0 },
+				CleanupTester{ testBool1 }
+			);
+
+			REQUIRE(*tester.Get<CleanupTester>(0).IsAlive == true);
+			REQUIRE(*tester.Get<CleanupTester>(1).IsAlive == true);
+		}
+
+		REQUIRE(testBool0 == false);
+		REQUIRE(testBool1 == false);
+	}
+}
+
+TEST_CASE("Type Vector", "[TypeVector]")
+{
+	auto TypeVectorTester = [](TypeVector& vector)
+		{
+			auto initialSize = vector.Size();
+
+			vector.PushBack();
+
+			REQUIRE(vector.Size() == initialSize + 1);
+
+			vector.PopBack();
+
+			REQUIRE(vector.Size() == initialSize);
+
+			for (size_t i{}; i < 4; ++i)
+			{
+				vector.PushBack();
+			}
+
+			REQUIRE_NOTHROW(vector.Front());
+			REQUIRE_NOTHROW(vector.Back());
+
+			REQUIRE_THROWS(vector.At(1000000));
+
+			vector.ShrinkToFit();
+
+			vector.Reserve(100);
+			REQUIRE(vector.Capacity() == 100);
+
+			vector.SwapRemove(2);
+		};
+
+	SECTION("Normal Construction")
+	{
+		auto vector = TypeVector{ glas::TypeId::Create<GameObject>() };
+
+		TypeVectorTester(vector);
+	}
+
+	SECTION("Normal Construction count")
+	{
+		auto vector = TypeVector{ glas::TypeId::Create<GameObject>(), 5 };
+
+		TypeVectorTester(vector);
+	}
+
+	SECTION("Construction Type Storage")
+	{
+		TypeStorage storage = TypeStorage::Construct<Vector>();
+
+		auto vector = TypeVector{ 10, storage };
+
+		TypeVectorTester(vector);
+	}
+
+	SECTION("Construction void* value")
+	{
+		Vector value{ 1,2,3 };
+		auto vector = TypeVector{ glas::TypeId::Create<Vector>(), 20, &value };
+
+		TypeVectorTester(vector);
+	}
+
+	SECTION("Create Template")
+	{
+		auto vector = TypeVector::Create<Scene>();
+
+		TypeVectorTester(vector);
+	}
+
+	SECTION("Create Template Count")
+	{
+		auto vector = TypeVector::Create<Scene>();
+
+		TypeVectorTester(vector);
+	}
+
+	SECTION("Create Template Count value")
+	{
+		auto vector = TypeVector(10, Vector{ 6,2,7 });
+
+		TypeVectorTester(vector);
+	}
+
+	SECTION("Iteration")
+	{
+		auto vector = TypeVector::Create<GameObject>(10);
+
+		int counter{};
+		for (auto element : vector)
+		{
+			static_cast<GameObject*>(element)->SetName(std::to_string(++counter));
+		}
+
+		for (auto it = vector.rbegin(); it != vector.rend(); ++it)
+		{
+			REQUIRE(it.get<GameObject>()->GetName() == std::to_string(counter--));
+		}
 	}
 }
