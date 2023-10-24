@@ -965,25 +965,54 @@ namespace glas
 	};
 }
 
+/**
+ * Internal Macros
+ */
+
+/** Concatenates two strings together inside a Macro.*/
 #define _GLAS_CONCAT_(a,b) a ## b
 
+/** Creates an inline static variable to register the Given Type.*/
 #define _GLAS_TYPE_INTERNAL(TYPE, ID) inline static glas::AutoRegisterType<TYPE> _GLAS_CONCAT_(RegisterType_, ID) {};
+
+/** Creates an inline static variable that registers a member variable.*/
+#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::AutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
+
+/** Creates an inline static variable that registers a function.*/
+#define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static glas::AutoRegisterFunction _GLAS_CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
+
+/** Creates an inline static variable that registers a member function.*/
+#define _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, ID) inline static glas::AutoRegisterMemberFunction _GLAS_CONCAT_(RegisterMemberFunction_, ID) {&CLASS::FUNCTION, #FUNCTION, PROPS};
+
+/** Creates an inline static variable that registers a parent-child relationship.*/
+#define _GLAS_CHILD_INTERNAL(BASE, CHILD, ID) inline static glas::AutoRegisterChildOnce<BASE, CHILD> _GLAS_CONCAT_(RegisterChild_, ID) {};
+
+/**
+ * Public Macros
+ */
+
+/** Register a type.*/
 #define GLAS_TYPE(TYPE) _GLAS_TYPE_INTERNAL(TYPE, __COUNTER__)
 
-#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::AutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
+/** Register a member variable with properties.*/
 #define GLAS_MEMBER(TYPE, MEMBER, PROPERTIES)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, __COUNTER__)
+/** Register a member variable with default properties.*/
 #define GLAS_MEMBER_DEF(TYPE, MEMBER)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, glas::DefaultMemberProperties, __COUNTER__)
 
+/** Get the function ID from the given function.*/
 #define GLAS_FUNCTION_ID(FUNCTION) glas::FunctionId::Create(FUNCTION, #FUNCTION)
+/** Get the function ID from the given method.*/
 #define GLAS_MEMBER_FUNCTION_ID(CLASS, FUNCTION) glas::FunctionId::Create(&CLASS::FUNCTION, #FUNCTION)
 
-#define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static glas::AutoRegisterFunction _GLAS_CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
+/** Register a function with properties.*/
 #define GLAS_FUNCTION(FUNCTION, PROPS) _GLAS_FUNCTION_INTERNAL(FUNCTION, __COUNTER__, PROPS);
+/** Register a function with default properties.*/
 #define GLAS_FUNCTION_DEF(FUNCTION) _GLAS_FUNCTION_INTERNAL(FUNCTION, __COUNTER__, glas::DefaultFunctionProperties);
 
-#define _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, ID) inline static glas::AutoRegisterMemberFunction _GLAS_CONCAT_(RegisterMemberFunction_, ID) {&CLASS::FUNCTION, #FUNCTION, PROPS};
+/** Register a member function with properties.*/
 #define GLAS_MEMBER_FUNCTION(CLASS, FUNCTION, PROPS) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, __COUNTER__);
+/** Register a member function with default properties.*/
 #define GLAS_MEMBER_FUNCTION_DEF(CLASS, FUNCTION) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, glas::DefaultFunctionProperties, __COUNTER__);
 
-#define _GLAS_CHILD_INTERNAL(BASE, CHILD, ID) inline static glas::AutoRegisterChildOnce<BASE, CHILD> _GLAS_CONCAT_(RegisterChild_, ID) {};
+/** Register a parent child relation ship.*/
 #define GLAS_CHILD(BASE, CHILD) _GLAS_CHILD_INTERNAL(BASE, CHILD, __COUNTER__)
