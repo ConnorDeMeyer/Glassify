@@ -1,6 +1,11 @@
 #pragma once
 #include "glas_decl.h"
 
+/**
+ * Whenever a reflected type requires another type to be reflected as well we can use a glas::AddDependency struct to add that type to the reflection system.
+ * Example: std::vector<int> also needs int to be reflected to function correctly.
+ */
+
 namespace glas
 {
 	template <typename T>
