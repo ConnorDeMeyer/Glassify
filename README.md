@@ -15,6 +15,14 @@ The example directory should not be included into an existing project and only e
 ## Customizing Glassify
 some features of glassify are able to be customized to fit the needs of the developer:
 
+The developer is able to choose which reflection data is stored inside the `glas::TypeInfo` struct by modyfing the contents of the `glas_config.h` file.
+
+Inside of the config file the developer may add any variable that he might need for his program inside of the TypeInfo struct.
+
+The newly added variable should then be filled inside of the `TypeInfo::Create()` function below the struct definition.
+
+There are addons that can be toggled on or off by commenting out the `#define` for each addon
+
 ### glas_config.h
 the `glas_config.h` file contains information about the information that will be stored for each type.
 the information that is stored by default is:
@@ -159,14 +167,28 @@ class ChildClass : public BaseClass
 GLAS_CHILD(BaseClass, ChildClass);
 ```
 
-## Customization
-The developer is able to choose which reflection data is stored inside the `glas::TypeInfo` struct by modyfing the contents of the `glas_config.h` file.
+### Dependancies
 
-Inside of the config file the developer may add any variable that he might need for his program inside of the TypeInfo struct.
+Some Types may need to rely on other types in order to maintain functionality. For examples: If we want to serialize an `std::vector<int>` than we need to register both the `std::vector<int>` and `int` to the serialization to work correctly. In this case the `std::vector<int>` depends on `int` for the type to work correctly.
 
-The newly added variable should then be filled inside of the `TypeInfo::Create()` function below the struct definition.
+Using the type `Glas::AddDependancy` we can define this relationship and automatically add any type which is depended on by another class, example:
+```cpp
+namespace glas
+{
+	template <typename T>
+	struct AddDependency<std::vector<T>>
+	{
+		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+	};
 
-There are addons that can be toggled on or off by commenting out the `#define` for each addon
+	template <>
+	struct AddDependency<Transform>
+	{
+		inline static AutoRegisterTypeOnce<ComponentBase> RegisterComponent{};
+	};
+}
+```
+Please look inside of `glas_dependencies.h` for more examples. These `AddDependency` structs can be created anywhere inside of the project.
 
 # Addons
 Addons are useful features that come with Glassify that can be completely removed from the project if the developer has no need for them
