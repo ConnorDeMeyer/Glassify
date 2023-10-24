@@ -28,15 +28,46 @@ GLAS_CHILD(Parent2, Child1)
 class ComponentBase
 {
 public:
-	virtual void Update(float deltaTime);
-	virtual void Render() const;
+	virtual void Update(float){}
+	virtual void Render() const{}
 };
 
 class Transform : public ComponentBase
 {
 public:
-	void Update(float deltaTime) override;
+	void Update(float) override{}
 };
+
+template <typename T>
+class TestDependency
+{
+	
+};
+
+namespace glas
+{
+	template <typename T>
+	struct AddDependency<TestDependency<T>>
+	{
+		AddDependency()
+		{
+			std::cout << "Registered Value with TestDependency\n";
+		}
+		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+	};
+
+	template <>
+	struct AddDependency<Transform>
+	{
+		AddDependency()
+		{
+			std::cout << "Registered Value with Transform\n";
+		}
+		inline static AutoRegisterTypeOnce<ComponentBase> RegisterComponent{};
+	};
+}
+
+GLAS_TYPE(TestDependency<Transform>);
 
 int main()
 {
@@ -56,5 +87,8 @@ int main()
 	std::cout << (&ComponentBase::Update == &Transform::Update);
 	std::cout << '\n';
 
-	
+	for (auto& [id, info] : glas::GetAllTypeInfo())
+	{
+		std::cout << info.Name << '\n';
+	}
 }
