@@ -58,6 +58,21 @@ struct Vector
 GLAS_TYPE(Vector);
 ```
 
+#### Type Identifier
+A `glas::TypeId` is a class containing a hash that is unique for each Type. The hash is the same between program invokations as long as the Name of the type does not change.
+The `TypeId` has a function called `GetInfo()` which will return the type info associated with the TypeId (if the type is registered to the reflection system).
+
+You can get a `TypeId` by using the function `Glas::TypeId::Create<TYPE>()`, where TYPE is the name of the type you want to create a `TypeId` for.
+
+You may access all registered `TypeId` and their perspective `TypeInfo` using the function:
+```cpp
+glas::GetAllTypeInfo()
+```
+
+#### Type Info
+`glas::TypeInfo` is a struct containing the type information that can normally only be accessed at compile time. the information in this struct can be customized inside of the `glas_config.h` file.
+
+
 ### Reflecting Member Variables
 Member variables can be added to the reflection system by using the `GLAS_MEMBER(CLASS, MEMBER)`. `CLASS` is the owning class type and `MEMBER` is the name of the member variable.
 ```cpp
@@ -93,21 +108,11 @@ struct RegisterGameObject final
 };
 ```
 
-### Type Identifier
-A `glas::TypeId` is a class containing a hash that is unique for each Type. The hash is the same between program invokations as long as the Name of the type does not change.
+#### Variable Identifier
+Variables can be identified using a `glas::VariableId`. This type holds a `glas::TypeId` and keeps track of the modifying factors like if it is _const_, _volatile_, _reference_, _r value reference_, _pointers_, _Array size_. This information can be freely queried and modified depending on the use of the type. It also contains a `ToString` method that allows for better representation of the variable type.
 
-You can get a `TypeId` by using the function `Glas::TypeId::Create<TYPE>()`, where TYPE is the name of the type you want to create a `TypeId` for.
-
-You may access all registered `TypeId` and their perspective `TypeInfo` using the function:
-```cpp
-glas::GetAllTypeInfo()
-```
-
-### Type Info
-`glas::TypeInfo` is a struct containing the type information that can normally only be accessed at compile time. the information in this struct can be customized inside of the `glas_config.h` file.
-
-### Function Reflection
-Functions and member functions can also be reflected using Glassify. using the macros `GLAS_FUNCTION(Function)` and `GLAS_MEMBER_FUNCTION(Class, MemberFunction)` for functions and member functions.
+### Reflecting Functions
+Functions and member functions can be reflected using Glassify. using the macros `GLAS_FUNCTION(Function)` and `GLAS_MEMBER_FUNCTION(Class, MemberFunction)` for functions and member functions.
 
 Each reflected _function/member function_ will be assigned a unique _ID_ that stays the same between sessions as long as the function signature does not change (no name change and no parameter change). The identifier gets constructed from the has of the name, parameters and, in case of a member function, the class it belongs to.
 
@@ -140,6 +145,19 @@ It is possible to try and dynamically cast any address to a specific function ty
 
 #### Function Calling
 Using the `TypeTuple` class from the [Storage](#storage) addon it is possible to call a function at runtime using data that is generated at runtime given that the parameters share the same types as the variables inside the `TypeTuple`.
+
+### Reflecting Parent-Child relation ships
+The relation ship between a parent and child class can also be registered into the reflection system by using the Macro `GLAS_CHILD`.
+
+```cpp
+class BaseClass
+{};
+
+class ChildClass : public BaseClass
+{};
+
+GLAS_CHILD(BaseClass, ChildClass);
+```
 
 ## Customization
 The developer is able to choose which reflection data is stored inside the `glas::TypeInfo` struct by modyfing the contents of the `glas_config.h` file.
@@ -246,6 +264,6 @@ Similarly to an std::weak_ptr, the `WeakTypeStorage` class needs to `SharedTypeS
 
 Similarly to an std::vector, the `TypeVector` stores a contigious array of instances of a type. this vector can be freely added to, removed from and queried. There are also iterator that can be used to iterator over the elements. The whole vector is typles and will store only data. The user is responsible for interpreting the data.
 
-#### Type Tuple
+### Type Tuple
 The `TypeTuple` class works similarly to a `std::tuple` class but typeless. It stores multiple instances of types and keeps track of the types inside using an array of `VariableId`s. It can be used to call functions and can be serialized too.
 
