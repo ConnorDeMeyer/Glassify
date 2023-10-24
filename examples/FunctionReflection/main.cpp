@@ -9,7 +9,7 @@ int GLAS_FUNCTIONTest(int param)
 	return param * 2;
 }
 
-GLAS_FUNCTION_DEF(GLAS_FUNCTIONTest);
+GLAS_FUNCTION(GLAS_FUNCTIONTest);
 
 
 void GLAS_FUNCTIONOverload()
@@ -22,8 +22,8 @@ void GLAS_FUNCTIONOverload(int)
 	std::cout << "Overload 2\n";
 }
 
-GLAS_FUNCTION_DEF(static_cast<void(*)()>(GLAS_FUNCTIONOverload));
-GLAS_FUNCTION_DEF(static_cast<void(*)(int)>(GLAS_FUNCTIONOverload));
+GLAS_FUNCTION(static_cast<void(*)()>(GLAS_FUNCTIONOverload));
+GLAS_FUNCTION(static_cast<void(*)(int)>(GLAS_FUNCTIONOverload));
 
 
 class Foo
@@ -42,8 +42,8 @@ private:
 	int var = 42;
 };
 
-GLAS_MEMBER_FUNCTION_DEF(Foo, MethodTest);
-GLAS_MEMBER_FUNCTION_DEF(Foo, ConstMethodTest);
+GLAS_MEMBER_FUNCTION(Foo, MethodTest);
+GLAS_MEMBER_FUNCTION(Foo, ConstMethodTest);
 
 int main()
 {

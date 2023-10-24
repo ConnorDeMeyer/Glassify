@@ -199,11 +199,8 @@ namespace glas
 		TypeInfo info{};
 
 		info.Name = TypeName<T>();
-		if constexpr (!std::is_same_v<void, T>)
-		{
-			info.Size = sizeof(T);
-			info.Align = alignof(T);
-		}
+		info.Size = sizeof(T);
+		info.Align = alignof(T);
 
 		if constexpr (std::is_polymorphic_v<T> && std::is_default_constructible_v<T>)
 		{

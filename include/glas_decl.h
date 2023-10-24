@@ -995,9 +995,9 @@ namespace glas
 #define GLAS_TYPE(TYPE) _GLAS_TYPE_INTERNAL(TYPE, __COUNTER__)
 
 /** Register a member variable with properties.*/
-#define GLAS_MEMBER(TYPE, MEMBER, PROPERTIES)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, __COUNTER__)
+#define GLAS_MEMBER_PROP(TYPE, MEMBER, PROPERTIES)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, __COUNTER__)
 /** Register a member variable with default properties.*/
-#define GLAS_MEMBER_DEF(TYPE, MEMBER)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, glas::DefaultMemberProperties, __COUNTER__)
+#define GLAS_MEMBER(TYPE, MEMBER)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, glas::DefaultMemberProperties, __COUNTER__)
 
 /** Get the function ID from the given function.*/
 #define GLAS_FUNCTION_ID(FUNCTION) glas::FunctionId::Create(FUNCTION, #FUNCTION)
@@ -1005,14 +1005,14 @@ namespace glas
 #define GLAS_MEMBER_FUNCTION_ID(CLASS, FUNCTION) glas::FunctionId::Create(&CLASS::FUNCTION, #FUNCTION)
 
 /** Register a function with properties.*/
-#define GLAS_FUNCTION(FUNCTION, PROPS) _GLAS_FUNCTION_INTERNAL(FUNCTION, __COUNTER__, PROPS);
+#define GLAS_FUNCTION_PROP(FUNCTION, PROPS) _GLAS_FUNCTION_INTERNAL(FUNCTION, __COUNTER__, PROPS);
 /** Register a function with default properties.*/
-#define GLAS_FUNCTION_DEF(FUNCTION) _GLAS_FUNCTION_INTERNAL(FUNCTION, __COUNTER__, glas::DefaultFunctionProperties);
+#define GLAS_FUNCTION(FUNCTION) _GLAS_FUNCTION_INTERNAL(FUNCTION, __COUNTER__, glas::DefaultFunctionProperties);
 
 /** Register a member function with properties.*/
-#define GLAS_MEMBER_FUNCTION(CLASS, FUNCTION, PROPS) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, __COUNTER__);
+#define GLAS_MEMBER_FUNCTION_PROP(CLASS, FUNCTION, PROPS) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, __COUNTER__);
 /** Register a member function with default properties.*/
-#define GLAS_MEMBER_FUNCTION_DEF(CLASS, FUNCTION) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, glas::DefaultFunctionProperties, __COUNTER__);
+#define GLAS_MEMBER_FUNCTION(CLASS, FUNCTION) _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, glas::DefaultFunctionProperties, __COUNTER__);
 
 /** Register a parent child relation ship.*/
 #define GLAS_CHILD(BASE, CHILD) _GLAS_CHILD_INTERNAL(BASE, CHILD, __COUNTER__)

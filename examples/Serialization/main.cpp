@@ -17,19 +17,19 @@ struct alignas(16) Vector
 
 GLAS_TYPE(Vector);
 
-GLAS_MEMBER_DEF(Vector, X);
-GLAS_MEMBER_DEF(Vector, Y);
-GLAS_MEMBER_DEF(Vector, Z);
+GLAS_MEMBER(Vector, X);
+GLAS_MEMBER(Vector, Y);
+GLAS_MEMBER(Vector, Z);
 
 struct alignas(16) Quaternion
 {
 	float X{}, Y{}, Z{}, W{};
 };
 
-GLAS_MEMBER_DEF(Quaternion, X);
-GLAS_MEMBER_DEF(Quaternion, Y);
-GLAS_MEMBER_DEF(Quaternion, Z);
-GLAS_MEMBER_DEF(Quaternion, W);
+GLAS_MEMBER(Quaternion, X);
+GLAS_MEMBER(Quaternion, Y);
+GLAS_MEMBER(Quaternion, Z);
+GLAS_MEMBER(Quaternion, W);
 
 struct Transform
 {
@@ -38,9 +38,9 @@ struct Transform
 	Vector Scale{ 1, 1, 1 };
 };
 
-GLAS_MEMBER_DEF(Transform, Translation);
-GLAS_MEMBER_DEF(Transform, Rotation);
-GLAS_MEMBER_DEF(Transform, Scale);
+GLAS_MEMBER(Transform, Translation);
+GLAS_MEMBER(Transform, Rotation);
+GLAS_MEMBER(Transform, Scale);
 
 class GameObject final
 {
@@ -59,9 +59,9 @@ private:
 
 struct RegisterGameObject final
 {
-	GLAS_MEMBER_DEF(GameObject, Name);
-	GLAS_MEMBER_DEF(GameObject, Id);
-	GLAS_MEMBER_DEF(GameObject, Transform);
+	GLAS_MEMBER(GameObject, Name);
+	GLAS_MEMBER(GameObject, Id);
+	GLAS_MEMBER(GameObject, Transform);
 };
 
 class Scene final
@@ -80,9 +80,9 @@ private:
 
 struct RegisterScene final
 {
-	GLAS_MEMBER_DEF(Scene, Name);
-	GLAS_MEMBER_DEF(Scene, Objects);
-	GLAS_MEMBER_DEF(Scene, ObjectsMap);
+	GLAS_MEMBER(Scene, Name);
+	GLAS_MEMBER(Scene, Objects);
+	GLAS_MEMBER(Scene, ObjectsMap);
 };
 
 struct TestClass
@@ -97,14 +97,14 @@ struct TestClass
 	std::forward_list<int> ForList{};
 };
 
-GLAS_MEMBER_DEF(TestClass, Array);
-GLAS_MEMBER_DEF(TestClass, Set);
-GLAS_MEMBER_DEF(TestClass, UnSet);
-GLAS_MEMBER_DEF(TestClass, Map);
-GLAS_MEMBER_DEF(TestClass, UnMap);
-GLAS_MEMBER_DEF(TestClass, Deque);
-GLAS_MEMBER_DEF(TestClass, List);
-GLAS_MEMBER_DEF(TestClass, ForList);
+GLAS_MEMBER(TestClass, Array);
+GLAS_MEMBER(TestClass, Set);
+GLAS_MEMBER(TestClass, UnSet);
+GLAS_MEMBER(TestClass, Map);
+GLAS_MEMBER(TestClass, UnMap);
+GLAS_MEMBER(TestClass, Deque);
+GLAS_MEMBER(TestClass, List);
+GLAS_MEMBER(TestClass, ForList);
 
 struct CustomSerialization
 {
