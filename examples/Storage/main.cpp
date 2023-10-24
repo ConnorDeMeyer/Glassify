@@ -169,6 +169,8 @@ struct CleanupTester
 	bool* IsAlive;
 };
 
+GLAS_TYPE(CleanupTester);
+
 struct NonCopyableType
 {
 	NonCopyableType() = default;
@@ -180,9 +182,68 @@ struct NonCopyableType
 	NonCopyableType(int, int&, const int&, int&&) {}
 };
 
-GLAS_TYPE(CleanupTester);
+struct VerboseClass
+{
+	static constexpr std::string_view ConstructionMessage = "Constructed";
+	static constexpr std::string_view DestructionMessage = "Destructed";
+	static constexpr std::string_view MoveConstructionMessage = "Copy Constructed";
+	static constexpr std::string_view CopyConstructionMessage = "Move Constructed";
+
+	VerboseClass() { PrintMessage(ConstructionMessage); }
+	~VerboseClass() { PrintMessage(DestructionMessage); }
+	VerboseClass(const VerboseClass&) { PrintMessage(CopyConstructionMessage); }
+	VerboseClass(VerboseClass&&) noexcept { PrintMessage(MoveConstructionMessage); }
+
+	void SayHello() { std::cout << "Hello world, my ID is: " << ID << '\n'; }
+
+	void PrintMessage(std::string_view message)
+	{
+		LastMessage = message;
+		std::cout << LastMessage << '\n';
+	}
+
+	int ID{};
+	std::string_view LastMessage;
+};
+
+GLAS_TYPE(VerboseClass);
 
 using namespace glas::Storage;
+
+TEST_CASE("Storage Type info", "[TypeInfo]")
+{
+	auto verboseClassId = glas::TypeId::Create<VerboseClass>();
+	auto info = verboseClassId.GetInfo();
+
+	auto data = std::make_unique<uint8_t[]>(info.Size);
+	// not yet initialized
+	auto classInstance = reinterpret_cast<VerboseClass*>(data.get());
+
+	info.Constructor(data.get());
+	REQUIRE(classInstance->LastMessage == VerboseClass::ConstructionMessage);
+
+	REQUIRE(classInstance->ID == 0);
+	classInstance->SayHello();
+
+	classInstance->ID = 42;
+	REQUIRE(classInstance->ID == 42);
+	classInstance->SayHello();
+
+
+	auto data2 = std::make_unique<uint8_t[]>(info.Size);
+	// not yet initialized
+	auto classInstance2 = reinterpret_cast<VerboseClass*>(data2.get());
+
+	info.CopyConstructor(data2.get(), data.get());
+	REQUIRE(classInstance2->LastMessage == VerboseClass::CopyConstructionMessage);
+
+
+	info.Destructor(data.get());
+	REQUIRE(classInstance->LastMessage == VerboseClass::DestructionMessage); // unsafe
+
+	info.Destructor(data2.get());
+	REQUIRE(classInstance2->LastMessage == VerboseClass::DestructionMessage); // unsafe
+}
 
 TEST_CASE("Type Storage", "[TypeStorage]")
 {
