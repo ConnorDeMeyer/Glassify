@@ -60,12 +60,9 @@ private:
 	friend struct RegisterGameObject;
 };
 
-struct RegisterGameObject final
-{
-	GLAS_MEMBER(GameObject, Name);
-	GLAS_MEMBER(GameObject, Id);
-	GLAS_MEMBER(GameObject, Transform);
-};
+GLAS_MEMBER(GameObject, Name);
+GLAS_MEMBER(GameObject, Id);
+GLAS_MEMBER(GameObject, Transform);
 
 class Scene final
 {
@@ -81,12 +78,9 @@ private:
 	friend struct RegisterScene;
 };
 
-struct RegisterScene final
-{
-	GLAS_MEMBER(Scene, Name);
-	GLAS_MEMBER(Scene, Objects);
-	GLAS_MEMBER(Scene, ObjectsMap);
-};
+GLAS_MEMBER(Scene, Name);
+GLAS_MEMBER(Scene, Objects);
+GLAS_MEMBER(Scene, ObjectsMap);
 
 struct TestClass
 {

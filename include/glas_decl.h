@@ -2,6 +2,7 @@
 
 #include <span>
 #include <array>
+#include <cassert>
 #include <tuple>
 #include <string>
 #include <vector>
@@ -882,6 +883,7 @@ namespace glas
 	 * When this struct is initialized as a static or global variable, the member will be registered before the main function.
 	 * @see RegisterField
 	 * @see GLAS_MEMBER
+	 * @warning deprecated
 	 */
 	struct AutoRegisterMember
 	{
@@ -889,6 +891,57 @@ namespace glas
 		AutoRegisterMember(Class*, VariableId memberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align, MemberProperties properties = DefaultMemberProperties)
 		{
 			RegisterField<Class>(memberId, fieldName, offset, size, align, properties);
+		}
+	};
+
+	template <size_t ID>
+	struct ClassMemberAccess
+	{
+		inline static std::pair<TypeId, uint32_t> MemberAccess{}; // ClassType / memberOffset
+
+		static MemberInfo* GetMember()
+		{
+			return const_cast<MemberInfo*>(MemberAccess.first.GetMemberInfo(MemberAccess.second));
+		}
+
+		static void SetRuntimeProperties(std::string_view name, MemberProperties properties = DefaultMemberProperties)
+		{
+			auto member = GetMember();
+			assert(member);
+			member->Name = name;
+			member->Properties = properties;
+		}
+	};
+
+	template <auto Member, size_t ID>
+	struct RegisterMemberType
+	{
+		template <size_t ID, typename Class, typename T>
+		static void* RegisterCompileTimeData(T Class::* member)
+		{
+			const MemberInfo& memberInfo = RegisterField<Class>(
+				VariableId::Create<T>(),
+				"",
+				static_cast<uint32_t>(reinterpret_cast<size_t>(&(*static_cast<Class*>(nullptr).*member))),
+				sizeof(decltype(member)),
+				alignof(decltype(member)),
+				DefaultMemberProperties
+			);
+
+			ClassMemberAccess<ID>::MemberAccess = std::pair<TypeId, uint32_t>(TypeId::Create<Class>(), memberInfo.Offset);
+
+			return nullptr;
+		}
+
+		inline static const void* TypeAccessData = RegisterCompileTimeData<ID>(Member);
+	};
+
+	template <size_t ID>
+	struct AutoMemberVariableDataSetter
+	{
+		AutoMemberVariableDataSetter(std::string_view name, glas::MemberProperties properties = glas::DefaultMemberProperties)
+		{
+			ClassMemberAccess<ID>::SetRuntimeProperties(name, properties);
 		}
 	};
 
@@ -976,7 +1029,9 @@ namespace glas
 #define _GLAS_TYPE_INTERNAL(TYPE, ID) inline static glas::AutoRegisterType<TYPE> _GLAS_CONCAT_(RegisterType_, ID) {};
 
 /** Creates an inline static variable that registers a member variable.*/
-#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::AutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
+//#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::AutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
+#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) namespace glas{ template struct glas::RegisterMemberType<&TYPE::MEMBER, ID>; } \
+inline static glas::AutoMemberVariableDataSetter<ID> _GLAS_CONCAT_(RegisterMember_, ID){#MEMBER, PROPERTIES};
 
 /** Creates an inline static variable that registers a function.*/
 #define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static glas::AutoRegisterFunction _GLAS_CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
@@ -986,6 +1041,8 @@ namespace glas
 
 /** Creates an inline static variable that registers a parent-child relationship.*/
 #define _GLAS_CHILD_INTERNAL(BASE, CHILD, ID) inline static glas::AutoRegisterChildOnce<BASE, CHILD> _GLAS_CONCAT_(RegisterChild_, ID) {};
+
+
 
 /**
  * Public Macros
