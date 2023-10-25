@@ -340,6 +340,11 @@ namespace glas::Serialization
 	inline void SerializeBinary(std::ostream& stream, const Storage::TypeTuple& value);
 	inline void DeserializeBinary(std::istream& stream, Storage::TypeTuple& value);
 
+	inline void Serialize(std::ostream& stream, const Storage::TypeVector& value);
+	inline void Deserialize(std::istream& stream, Storage::TypeVector& value);
+	inline void SerializeBinary(std::ostream& stream, const Storage::TypeVector& value);
+	inline void DeserializeBinary(std::istream& stream, Storage::TypeVector& value);
+
 	template <typename FunctionParametersTuple, typename ... Parameters>
 	void DeserializeFunctionBinary(std::ostream& stream, Parameters... values);
 }

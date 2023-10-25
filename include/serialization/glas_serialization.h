@@ -1099,9 +1099,117 @@ namespace glas::Serialization
 			}
 		}
 	}
-#endif
 
+	inline void Serialize(std::ostream& stream, const Storage::TypeVector& value)
+	{
+		if (value.GetType().IsValid())
+		{
+			stream << '{';
+
+			stream << value.GetType().GetId();
+
+			stream << "}:[";
+
+			const auto& typeInfo = value.GetType().GetInfo();
+			const auto typeSerializer = typeInfo.Serializer;
+
+			int counter{};
+			for (auto element : value)
+			{
+				if (counter++ != 0)
+					stream << ',';
+
+				typeSerializer(stream, element);
+			}
+
+			stream << ']';
+		}
+		else
+		{
+			stream << "{}:[]";
+		}
+	}
+
+	inline void Deserialize(std::istream& stream, Storage::TypeVector& value)
+	{
+		char buffer{};
+		IStreamChar(stream, '{');
+
+		stream >> buffer;
+		if (buffer == '}') // invalid type, skip
+		{
+			IStreamChar(stream, ':');
+			IStreamChar(stream, '[');
+			IStreamChar(stream, ']');
+		}
+		stream.unget();
+
+		uint64_t typeHash{};
+		stream >> typeHash;
+
+		TypeId type = { typeHash };
+		assert(type.IsValid());
+		value = Storage::TypeVector(type);
+
+		IStreamChar(stream, '}');
+		IStreamChar(stream, ':');
+		IStreamChar(stream, '[');
+
+		const auto& info = type.GetInfo();
+		const auto deserializer = info.Deserializer;
+
+		while (buffer != ']')
+		{
+			void* element = value.PushBack();
+			deserializer(stream, element);
+
+			stream >> buffer;
+		}
+	}
+
+	inline void SerializeBinary(std::ostream& stream, const Storage::TypeVector& value)
+	{
+		if (value.GetType().IsValid())
+		{
+			WriteStream(stream, value.GetType());
+			WriteStream(stream, value.Size());
+
+			const auto& info = value.GetType().GetInfo();
+			const auto binarySerializer = info.BinarySerializer;
+
+			for (auto element : value)
+			{
+				binarySerializer(stream, element);
+			}
+		}
+		else
+		{
+			WriteStream(stream, TypeId{});
+			WriteStream(stream, size_t{});
+		}
+	}
+
+	inline void DeserializeBinary(std::istream& stream, Storage::TypeVector& value)
+	{
+		const TypeId id = ReadStream<TypeId>(stream);
+		value = Storage::TypeVector(id);
+
+		const size_t size = ReadStream<size_t>(stream);
+		value.Resize(size);
+
+		if (!id.IsValid())
+			return;
+
+		const auto& info = id.GetInfo();
+		const auto binaryDeserializer = info.BinaryDeserializer;
+
+		for (auto element : value)
+		{
+			binaryDeserializer(stream, element);
+		}
+	}
 }
+#endif
 
 /** DEFAULT SERIALIZATION */
 namespace glas::Serialization

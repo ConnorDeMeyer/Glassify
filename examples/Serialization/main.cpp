@@ -480,4 +480,67 @@ namespace SerializeTest
 		Serialize(std::cout, tuple);
 	}
 
+
+	TEST_CASE("Type Vector Serialization", "[TypeVector]")
+	{
+		{
+			glas::Storage::TypeVector vector{ glas::TypeId::Create<Vector>() };
+
+			{
+				auto& element = vector.PushBack<Vector>();
+				element.X = 1.f;
+				element.Y = 2.f;
+				element.Z = 3.f;
+			}
+			{
+				auto& element = vector.PushBack<Vector>();
+				element.X = 4.f;
+				element.Y = 5.f;
+				element.Z = 6.f;
+			}
+
+			std::stringstream stream;
+			glas::Serialization::Serialize(stream, vector);
+
+			auto result = stream.str();
+			REQUIRE(result == "{14332516166325358969}:[{\"X\": 1,\"Y\": 2,\"Z\": 3},{\"X\": 4,\"Y\": 5,\"Z\": 6}]");
+			stream.str(std::move(result));
+
+			glas::Storage::TypeVector vectorCopy;
+
+			glas::Serialization::Deserialize(stream, vectorCopy);
+
+			REQUIRE(vectorCopy.Size() == 2);
+			REQUIRE(vectorCopy.Get<Vector>(0).X == vector.Get<Vector>(0).X);
+			REQUIRE(vectorCopy.Get<Vector>(1).Y == vector.Get<Vector>(1).Y);
+		}
+		{
+			glas::Storage::TypeVector vector{ glas::TypeId::Create<Vector>() };
+
+			{
+				auto& element = vector.PushBack<Vector>();
+				element.X = 1.f;
+				element.Y = 2.f;
+				element.Z = 3.f;
+			}
+			{
+				auto& element = vector.PushBack<Vector>();
+				element.X = 4.f;
+				element.Y = 5.f;
+				element.Z = 6.f;
+			}
+
+			std::stringstream stream;
+			glas::Serialization::SerializeBinary(stream, vector);
+
+			glas::Storage::TypeVector vectorCopy;
+
+			glas::Serialization::DeserializeBinary(stream, vectorCopy);
+
+			REQUIRE(vectorCopy.Size() == 2);
+			REQUIRE(vectorCopy.Get<Vector>(0).X == vector.Get<Vector>(0).X);
+			REQUIRE(vectorCopy.Get<Vector>(1).Y == vector.Get<Vector>(1).Y);
+		}
+	}
+
 }
