@@ -144,11 +144,11 @@ class ChildClass : public BaseClass
 GLAS_CHILD(BaseClass, ChildClass);
 ```
 
-### Dependancies
+### Dependencies
 
 Some Types may need to rely on other types in order to maintain functionality. For examples: If we want to serialize an `std::vector<int>` than we need to register both the `std::vector<int>` and `int` to the serialization to work correctly. In this case the `std::vector<int>` depends on `int` for the type to work correctly.
 
-Using the type `Glas::AddDependancy` we can define this relationship and automatically add any type which is depended on by another class, example:
+Using the type `Glas::AddDependency` we can define this relationship and automatically add any type which is depended on by another class, example:
 ```cpp
 namespace glas
 {
