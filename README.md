@@ -93,29 +93,6 @@ GLAS_MEMBER(Vector, X);
 GLAS_MEMBER(Vector, Y);
 GLAS_MEMBER(Vector, Z);
 ```
-
-#### Reflecting Private Member Variables
-Because private/protected member variables cannot be reached by other classes, we have to create a friend class that contains the `GLAS_MEMBER()` macro
-
-```cpp
-class GameObject final
-{
-private:
-	Transform Transform{};
-	std::string Name{ "None" };
-	uint32_t Id{};
-
-	friend struct RegisterGameObject;
-};
-
-struct RegisterGameObject final
-{
-	GLAS_MEMBER(GameObject, Name);
-	GLAS_MEMBER(GameObject, Id);
-	GLAS_MEMBER(GameObject, Transform);
-};
-```
-
 #### Variable Identifier
 Variables can be identified using a `glas::VariableId`. This type holds a `glas::TypeId` and keeps track of the modifying factors like if it is _const_, _volatile_, _reference_, _r value reference_, _pointers_, _Array size_. This information can be freely queried and modified depending on the use of the type. It also contains a `ToString` method that allows for better representation of the variable type.
 
