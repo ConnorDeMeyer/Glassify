@@ -626,7 +626,7 @@ namespace glas::Storage
 			assert(copyConstructor);
 			m_ElementSize = info.Size;
 
-			ResizeUninitialized(other.Size());
+			ReserveUninitialized(other.Size());
 
 			for (size_t i{}; i < other.Size(); ++i)
 			{
@@ -656,7 +656,7 @@ namespace glas::Storage
 		const auto& constructor = info.Constructor;
 		m_ElementSize = info.Size;
 
-		ResizeUninitialized(count);
+		ReserveUninitialized(count);
 		for (auto& element : *this)
 		{
 			constructor(element);
@@ -678,7 +678,7 @@ namespace glas::Storage
 		const auto& copyConstructor = info.CopyConstructor;
 		m_ElementSize = info.Size;
 
-		ResizeUninitialized(count);
+		ReserveUninitialized(count);
 		for (auto& element : *this)
 		{
 			copyConstructor(element, value);
@@ -710,6 +710,53 @@ namespace glas::Storage
 		: TypeVector(TypeId::Create<T>(), count, &value)
 	{}
 
+	template <typename T>
+	T& TypeVector::Get(size_t index)
+	{
+		assert(GetType() == TypeId::Create<T>());
+		return *static_cast<T*>((*this)[index]);
+	}
+
+	template <typename T>
+	const T& TypeVector::Get(size_t index) const
+	{
+		assert(GetType() == TypeId::Create<T>());
+		return *static_cast<const T*>((*this)[index]);
+	}
+
+	template <typename T>
+	T& TypeVector::PushBack()
+	{
+		assert(GetType() == TypeId::Create<T>());
+		auto address = PushBackUninitialized();
+
+		new (address) T();
+
+		return *static_cast<T*>(address);
+	}
+
+	template <typename T>
+	T& TypeVector::PushBack(const T& element)
+	{
+		assert(GetType() == TypeId::Create<T>());
+		auto address = PushBackUninitialized();
+
+		new (address) T(element);
+
+		return *static_cast<T*>(address);
+	}
+
+	template <typename T>
+	T& TypeVector::PushBack(T&& element)
+	{
+		assert(GetType() == TypeId::Create<T>());
+		auto address = PushBackUninitialized();
+
+		new (address) T(element);
+
+		return *static_cast<T*>(address);
+	}
+
 	//template <typename T>
 	//TypeVector::TypeVector(std::initializer_list<T> initializer)
 	//	: m_ContainedType{ TypeId::Create<T>() }
@@ -717,7 +764,7 @@ namespace glas::Storage
 	//{
 	//	assert(AssertType(TypeId::Create<T>()));
 	//
-	//	ResizeUninitialized(initializer.size());
+	//	ReserveUninitialized(initializer.size());
 	//
 	//	size_t index{};
 	//	for (auto& element : initializer)
@@ -734,7 +781,7 @@ namespace glas::Storage
 			m_ContainedType = other.m_ContainedType;
 			m_ElementSize = other.m_ElementSize;
 
-			ResizeUninitialized(other.m_Size);
+			ReserveUninitialized(other.m_Size);
 
 			const auto& info = m_ContainedType.GetInfo();
 			const auto& copyConstructor = info.CopyConstructor;
@@ -815,7 +862,7 @@ namespace glas::Storage
 	{
 		if (Size() >= Capacity())
 		{
-			ResizeZeroed(CalculateNewSize());
+			ReserveZeroed(CalculateNewSize());
 		}
 
 		const auto& info = m_ContainedType.GetInfo();
@@ -834,7 +881,7 @@ namespace glas::Storage
 	{
 		if (Size() >= Capacity())
 		{
-			ResizeZeroed(CalculateNewSize());
+			ReserveZeroed(CalculateNewSize());
 		}
 
 		const auto& info = m_ContainedType.GetInfo();
@@ -853,7 +900,7 @@ namespace glas::Storage
 	{
 		if (Size() >= Capacity())
 		{
-			ResizeZeroed(CalculateNewSize());
+			ReserveZeroed(CalculateNewSize());
 		}
 
 		const auto& info = m_ContainedType.GetInfo();
@@ -866,6 +913,18 @@ namespace glas::Storage
 
 		moveConstructor(back, data);
 		return back;
+	}
+
+	inline void* TypeVector::PushBackUninitialized()
+	{
+		if (Size() >= Capacity())
+		{
+			ReserveZeroed(CalculateNewSize());
+		}
+
+		++m_Size;
+
+		return Back();
 	}
 
 	inline void TypeVector::PopBack()
@@ -912,7 +971,9 @@ namespace glas::Storage
 
 		const size_t originalSize = Size();
 
-		ResizeUninitialized(size);
+		ReserveUninitialized(size);
+
+		m_Size = size;
 
 		for (size_t i{ originalSize }; i < size; ++i)
 		{
@@ -920,15 +981,15 @@ namespace glas::Storage
 		}
 	}
 
-	inline void TypeVector::ResizeZeroed(size_t size)
+	inline void TypeVector::ReserveZeroed(size_t size)
 	{
 		const size_t originalSize = Size();
-		ResizeUninitialized(size);
+		ReserveUninitialized(size);
 
 		std::memset(ElementAddress(originalSize), 0, (size - originalSize) * ElementSize());
 	}
 
-	inline void TypeVector::ResizeUninitialized(size_t size)
+	inline void TypeVector::ReserveUninitialized(size_t size)
 	{
 		if (size == Size())
 			return;
