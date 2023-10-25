@@ -198,7 +198,7 @@ namespace glas::Storage
 	template <typename T>
 	TypeStorage TypeStorage::Initialize()
 	{
-		AutoRegisterTypeOnce<T> RegisterType{};
+		GlasAutoRegisterTypeOnce<T> RegisterType{};
 
 		TypeStorage storage;
 		storage.m_TypeId = TypeId::Create<T>();
@@ -316,7 +316,7 @@ namespace glas::Storage
 	template <typename T>
 	SharedTypeStorage SharedTypeStorage::Initialize()
 	{
-		AutoRegisterTypeOnce<T> RegisterType{};
+		GlasAutoRegisterTypeOnce<T> RegisterType{};
 
 		SharedTypeStorage storage;
 		storage.m_TypeId = TypeId::Create<T>();

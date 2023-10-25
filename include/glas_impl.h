@@ -119,7 +119,7 @@ namespace glas
 	template <typename T>
 	constexpr TypeId TypeId::Create()
 	{
-		AutoRegisterTypeOnce<T>();
+		GlasAutoRegisterTypeOnce<T>();
 		return TypeId(TypeHash<strip_type_t<T>>());
 	}
 
@@ -132,7 +132,7 @@ namespace glas
 
 		using StrippedType			= std::remove_cvref_t<Type_RemovedPtrs>;
 		
-		AutoRegisterTypeOnce<StrippedType> TypeRegister{};
+		GlasAutoRegisterTypeOnce<StrippedType> TypeRegister{};
 
 		constexpr bool IsRef		{ std::is_reference_v<T> };
 		constexpr bool IsRValRef	{ std::is_rvalue_reference_v<T> };

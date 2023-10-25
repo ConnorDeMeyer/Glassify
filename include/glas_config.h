@@ -47,7 +47,7 @@ namespace glas
 		/**
 		 * Member variables that have been registered to this type.
 		 * @see MemberInfo
-		 * @see AutoRegisterMember
+		 * @see GlasAutoRegisterMember
 		 * @see GLAS_MEMBER
 		 */
 		std::vector<MemberInfo>		Members				{ };
@@ -55,7 +55,7 @@ namespace glas
 		/**
 		 * Member Functions that have been registered to this type.
 		 * @see FunctionId
-		 * @see AutoRegisterFunction
+		 * @see GlasAutoRegisterFunction
 		 * @see GLAS_FUNCTION
 		 */
 		std::vector<FunctionId>		MemberFunctions		{ };
@@ -63,7 +63,7 @@ namespace glas
 		/**
 		 * Base classes of this type that have been registered.
 		 * @see BaseClassInfo
-		 * @see AutoRegisterChildOnce
+		 * @see GlasAutoRegisterChildOnce
 		 * @see GLAS_CHILD
 		 */
 		std::vector<BaseClassInfo>	BaseClasses			{ };
@@ -71,7 +71,7 @@ namespace glas
 		/**
 		 * Child classes of this type that have been registered.
 		 * @see TypeId
-		 * @see AutoRegisterChildOnce
+		 * @see GlasAutoRegisterChildOnce
 		 * @see GLAS_CHILD
 		 */
 		std::vector<TypeId>			ChildClasses		{ };

@@ -15,7 +15,7 @@ namespace glas
 	/**
 	 * Properties for member variables that can be freely customized by the developer.
 	 * These properties are set when a Member Variable is registered to the reflection system.
-	 * @see AutoRegisterMember
+	 * @see GlasAutoRegisterMember
 	 * @see GLAS_MEMBER
 	 */
 	enum class MemberProperties : EnumBase
@@ -37,8 +37,8 @@ namespace glas
 	/**
 	 * Properties for functions and methods that can be freely customized by the developer.
 	 * These properties are set when a Function or Method is registered to the reflection system.
-	 * @see AutoRegisterFunction
-	 * @see AutoRegisterMemberFunction
+	 * @see GlasAutoRegisterFunction
+	 * @see GlasAutoRegisterMemberFunction
 	 * @see GLAS_FUNCTION
 	 * @see GLAS_MEMBER_FUNCTION
 	 */

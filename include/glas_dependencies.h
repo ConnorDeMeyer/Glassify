@@ -15,7 +15,7 @@ namespace glas
 	template <typename T>
 	struct AddDependency<std::vector<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -23,7 +23,7 @@ namespace glas
 	template <typename T, size_t size>
 	struct AddDependency<std::array<T, size>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -31,7 +31,7 @@ namespace glas
 	template <typename T>
 	struct AddDependency<std::deque<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -39,7 +39,7 @@ namespace glas
 	template <typename T>
 	struct AddDependency<std::forward_list<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -47,7 +47,7 @@ namespace glas
 	template <typename T>
 	struct AddDependency<std::list<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -55,13 +55,13 @@ namespace glas
 	template <typename T>
 	struct AddDependency<std::set<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 
 	template <typename T>
 	struct AddDependency<std::multiset<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -69,13 +69,13 @@ namespace glas
 	template <typename T>
 	struct AddDependency<std::unordered_set<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 
 	template <typename T>
 	struct AddDependency<std::unordered_multiset<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -83,15 +83,15 @@ namespace glas
 	template <typename Key, typename Value>
 	struct AddDependency<std::map<Key, Value>>
 	{
-		inline static AutoRegisterTypeOnce<Key> RegisterKey{};
-		inline static AutoRegisterTypeOnce<Value> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<Key> RegisterKey{};
+		inline static GlasAutoRegisterTypeOnce<Value> RegisterValue{};
 	};
 
 	template <typename Key, typename Value>
 	struct AddDependency<std::multimap<Key, Value>>
 	{
-		inline static AutoRegisterTypeOnce<Key> RegisterKey{};
-		inline static AutoRegisterTypeOnce<Value> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<Key> RegisterKey{};
+		inline static GlasAutoRegisterTypeOnce<Value> RegisterValue{};
 	};
 #endif
 
@@ -99,15 +99,15 @@ namespace glas
 	template <typename Key, typename Value>
 	struct AddDependency<std::unordered_map<Key, Value>>
 	{
-		inline static AutoRegisterTypeOnce<Key> RegisterKey{};
-		inline static AutoRegisterTypeOnce<Value> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<Key> RegisterKey{};
+		inline static GlasAutoRegisterTypeOnce<Value> RegisterValue{};
 	};
 
 	template <typename Key, typename Value>
 	struct AddDependency<std::unordered_multimap<Key, Value>>
 	{
-		inline static AutoRegisterTypeOnce<Key> RegisterKey{};
-		inline static AutoRegisterTypeOnce<Value> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<Key> RegisterKey{};
+		inline static GlasAutoRegisterTypeOnce<Value> RegisterValue{};
 	};
 #endif
 
@@ -115,7 +115,7 @@ namespace glas
 	template <typename T>
 	struct AddDependency<std::unique_ptr<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -123,7 +123,7 @@ namespace glas
 	template <typename T>
 	struct AddDependency<std::optional<T>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 #endif
 
@@ -131,14 +131,14 @@ namespace glas
 	template <typename T1, typename T2>
 	struct AddDependency<std::pair<T1, T2>>
 	{
-		inline static AutoRegisterTypeOnce<T1> RegisterT1{};
-		inline static AutoRegisterTypeOnce<T2> RegisterT2{};
+		inline static GlasAutoRegisterTypeOnce<T1> RegisterT1{};
+		inline static GlasAutoRegisterTypeOnce<T2> RegisterT2{};
 	};
 
 	template <typename T, typename... Ts>
 	struct AddDependency<std::tuple<T, Ts...>> : private AddDependency<std::tuple<Ts...>>
 	{
-		inline static AutoRegisterTypeOnce<T> RegisterType{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterType{};
 	};
 #endif
 }

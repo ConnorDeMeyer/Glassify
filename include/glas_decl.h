@@ -629,13 +629,13 @@ namespace glas
 		 * @see TypeId::GetInfo
 		 * @see GLAS_TYPE
 		 */
-		std::unordered_map<TypeId, TypeInfo>			TypeInfoMap				{ };
+		std::unordered_map<TypeId, TypeInfo>			TypeInfoMap{ };
 
 		/**
 		 * Map between the name of a type and its respective TypeId. Type must have been registered first
 		 * @see GLAS_TYPE
 		 */
-		std::unordered_map<std::string, TypeId>			NameToTypeIdMap			{ };
+		std::unordered_map<std::string, TypeId>			NameToTypeIdMap{ };
 
 		/**
 		 * Map between FunctionIds and their respective FunctionInfo. Function must have been registered.
@@ -643,7 +643,7 @@ namespace glas
 		 * @see GLAS_REGISTER_FUNCTION
 		 * @see GLAS_MEMBER_REGISTER_FUNCTION
 		 */
-		std::unordered_map<FunctionId, FunctionInfo>	FunctionInfoMap			{ };
+		std::unordered_map<FunctionId, FunctionInfo>	FunctionInfoMap{ };
 
 		/**
 		 * Map between a function name and its respective functionId. Function must have been registered.
@@ -651,20 +651,20 @@ namespace glas
 		 * @see GLAS_MEMBER_REGISTER_FUNCTION
 		 * @warning experimental feature
 		 */
-		std::unordered_map<std::string, FunctionId>		NameToFunctionIdMap		{ };
+		std::unordered_map<std::string, FunctionId>		NameToFunctionIdMap{ };
 
 		/**
 		 * Map between function addresses and their respective functionId. Function must have been registered.
 		 * @see GLAS_REGISTER_FUNCTION
 		 * @see GLAS_MEMBER_REGISTER_FUNCTION
 		 */
-		std::unordered_map<const void*, FunctionId>		FunctionAddressToIdMap	{ };
+		std::unordered_map<const void*, FunctionId>		FunctionAddressToIdMap{ };
 
 		/**
 		 * Map between v-table and TypeId in case the type is polymorphic. Type must have been registered.
 		 * @warning experimental feature
 		 */
-		std::unordered_map<const void*, TypeId>			VTableMap				{ };
+		std::unordered_map<const void*, TypeId>			VTableMap{ };
 	};
 
 	/**
@@ -683,8 +683,8 @@ namespace glas
 
 	/**
 	 * Register a type into the reflection system.
-	 * @see AutoRegisterType
-	 * @see AutoRegisterTypeOnce
+	 * @see GlasAutoRegisterType
+	 * @see GlasAutoRegisterTypeOnce
 	 * @see GLAS_TYPE
 	 */
 	template <typename T>
@@ -696,7 +696,7 @@ namespace glas
 	 * @param offset the offset of the member variable inside of the owning class
 	 * @param properties custom set properties of the member variable
 	 * @return reference to the generated MemberInfo instance
-	 * @see AutoRegisterMember
+	 * @see GlasAutoRegisterMember
 	 * @see GLAS_MEMBER
 	 * @see MemberInfo
 	 */
@@ -712,7 +712,7 @@ namespace glas
 	 * @param align the alignment of the member variable inside of the owning class
 	 * @param properties custom set properties of the member variable
 	 * @return reference to the generated MemberInfo instance
-	 * @see AutoRegisterMember
+	 * @see GlasAutoRegisterMember
 	 * @see GLAS_MEMBER
 	 * @see MemberInfo
 	 */
@@ -763,7 +763,7 @@ namespace glas
 	 * @param function the function that has to be registered.
 	 * @param name name of the function
 	 * @param properties custom properties of the function.
-	 * @see AutoRegisterFunction
+	 * @see GlasAutoRegisterFunction
 	 * @see GLAS_FUNCTION
 	 * @see GLAS_FUNCTION_DEF
 	 */
@@ -815,7 +815,7 @@ namespace glas
 	 * @see GetTypeHash
 	 */
 	template <typename Class, typename ReturnType, typename ... ParameterTypes>
-	uint64_t GetFunctionHash(ReturnType(Class::*function)(ParameterTypes...), std::string_view name);
+	uint64_t GetFunctionHash(ReturnType(Class::* function)(ParameterTypes...), std::string_view name);
 
 	/**
 	 * Calculates a hash for a Function. Takes the hash of the ReturnType and ParameterTypes and combines it with the hash of the function name.
@@ -840,183 +840,185 @@ namespace glas
 	template <typename Parent, typename Child>
 	constexpr void RegisterChild();
 
-	/** STATIC REGISTRATION*/
-
-	/**
-	 * Will register the Type whenever the variable is constructed.
-	 * When this struct is Initialized as a static or global variable, the type will be registered before the main function.
-	 * @see RegisterType
-	 * @see AutoRegisterTypeOnce
-	 * @see GLAS_TYPE
-	 */
-	template <typename T>
-	struct AutoRegisterType
-	{
-		AutoRegisterType()
-		{
-			RegisterType<T>();
-		}
-	};
-
-	/**
-	 * Will register the Type whenever an instance of AutoRegisterTypeOnce<TYPE> exists.
-	 * @see RegisterType
-	 * @see AutoRegisterType
-	 * @see GLAS_TYPE
-	 */
-	template <typename T>
-	struct AutoRegisterTypeOnce
-	{
-	private:
-		struct AutoRegisterTypeOnce_Internal
-		{
-			AutoRegisterTypeOnce_Internal()
-			{
-				RegisterType<T>();
-			}
-		};
-		inline static AutoRegisterTypeOnce_Internal StaticRegisterType{};
-	};
-
-	/**
-	 * Will register the member variable when the type is constructed using the values inside of the constructor.
-	 * When this struct is initialized as a static or global variable, the member will be registered before the main function.
-	 * @see RegisterField
-	 * @see GLAS_MEMBER
-	 * @warning deprecated
-	 */
-	struct AutoRegisterMember
-	{
-		template <typename Class>
-		AutoRegisterMember(Class*, VariableId memberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align, MemberProperties properties = DefaultMemberProperties)
-		{
-			RegisterField<Class>(memberId, fieldName, offset, size, align, properties);
-		}
-	};
-
-	template <size_t ID>
-	struct ClassMemberAccess
-	{
-		inline static std::pair<TypeId, uint32_t> MemberAccess{}; // ClassType / memberOffset
-
-		static MemberInfo* GetMember()
-		{
-			return const_cast<MemberInfo*>(MemberAccess.first.GetMemberInfo(MemberAccess.second));
-		}
-
-		static void SetRuntimeProperties(std::string_view name, MemberProperties properties = DefaultMemberProperties)
-		{
-			auto member = GetMember();
-			assert(member);
-			member->Name = name;
-			member->Properties = properties;
-		}
-	};
-
-	template <auto Member, size_t ID>
-	struct RegisterMemberType
-	{
-		template <size_t ID, typename Class, typename T>
-		static void* RegisterCompileTimeData(T Class::* member)
-		{
-			const MemberInfo& memberInfo = RegisterField<Class>(
-				VariableId::Create<T>(),
-				"",
-				static_cast<uint32_t>(reinterpret_cast<size_t>(&(*static_cast<Class*>(nullptr).*member))),
-				sizeof(decltype(member)),
-				alignof(decltype(member)),
-				DefaultMemberProperties
-			);
-
-			ClassMemberAccess<ID>::MemberAccess = std::pair<TypeId, uint32_t>(TypeId::Create<Class>(), memberInfo.Offset);
-
-			return nullptr;
-		}
-
-		inline static const void* TypeAccessData = RegisterCompileTimeData<ID>(Member);
-	};
-
-	template <size_t ID>
-	struct AutoMemberVariableDataSetter
-	{
-		AutoMemberVariableDataSetter(std::string_view name, glas::MemberProperties properties = glas::DefaultMemberProperties)
-		{
-			ClassMemberAccess<ID>::SetRuntimeProperties(name, properties);
-		}
-	};
-
-	/**
-	 * Will register the function when an instance of the type is constructed.
-	 * When this struct is initialized as a static or global variable, the function will be registered before the main function.
-	 * @see RegisterFunction
-	 * @see GLAS_FUNCTION
-	 */
-	struct AutoRegisterFunction
-	{
-		template <typename ReturnType, typename ... ParameterTypes>
-		AutoRegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name, FunctionProperties properties = DefaultFunctionProperties)
-		{
-			RegisterFunction(function, name, properties);
-		}
-	};
-
-	/**
-	 * Will register the member method when an instance of the type is constructed.
-	 * When this struct is initialized as a static or global variable, the method will be registered before the main function.
-	 * @see RegisterMethodFunction
-	 * @see RegisterConstMethodFunction
-	 * @see GLAS_MEMBER
-	 */
-	struct AutoRegisterMemberFunction
-	{
-		template <typename Class, typename ReturnType, typename ... ParameterTypes>
-		AutoRegisterMemberFunction(ReturnType(Class::*function)(ParameterTypes...), std::string_view name, FunctionProperties properties = DefaultFunctionProperties)
-		{
-			RegisterMethodFunction(function, name, properties);
-		}
-		template <typename Class, typename ReturnType, typename ... ParameterTypes>
-		AutoRegisterMemberFunction(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name, FunctionProperties properties = DefaultFunctionProperties)
-		{
-			RegisterConstMethodFunction(function, name, properties);
-		}
-	};
-
-	/**
-	 * Will register the parent-child relationship in the reflection system when a instance of the type is constructed.
-	 * When this struct is initialized as a static or global variable, the relationship will be registered before the main function.
-	 * @see RegisterChild
-	 * @see AutoRegisterChildOnce
-	 * @see GLAS_CHILD
-	 */
-	template <typename Parent, typename Child>
-	struct AutoRegisterChild
-	{
-		AutoRegisterChild()
-		{
-			RegisterChild<Parent, Child>();
-		}
-	};
-
-	/**
-	 * Will register the parent-child relationship in the reflection system whenever an instance of this class exists.
-	 * @see AutoRegisterChild
-	 * @see RegisterChild
-	 * @see GLAS_CHILD
-	 */
-	template <typename Parent, typename Child>
-	struct AutoRegisterChildOnce
-	{
-	private:
-		struct AutoRegisterChildOnce_Internal
-		{
-			AutoRegisterChildOnce_Internal()
-			{
-				RegisterChild<Parent, Child>();
-			}
-		};
-		inline static AutoRegisterChildOnce_Internal StaticRegisterType{};
-	};
 }
+
+/** STATIC REGISTRATION*/
+
+/**
+ * Will register the Type whenever the variable is constructed.
+ * When this struct is Initialized as a static or global variable, the type will be registered before the main function.
+ * @see RegisterType
+ * @see GlasAutoRegisterTypeOnce
+ * @see GLAS_TYPE
+ */
+template <typename T>
+struct GlasAutoRegisterType
+{
+	GlasAutoRegisterType()
+	{
+		glas::RegisterType<T>();
+	}
+};
+
+/**
+ * Will register the Type whenever an instance of GlasAutoRegisterTypeOnce<TYPE> exists.
+ * @see RegisterType
+ * @see GlasAutoRegisterType
+ * @see GLAS_TYPE
+ */
+template <typename T>
+struct GlasAutoRegisterTypeOnce
+{
+private:
+	struct GlasAutoRegisterTypeOnce_Internal
+	{
+		GlasAutoRegisterTypeOnce_Internal()
+		{
+			glas::RegisterType<T>();
+		}
+	};
+	inline static GlasAutoRegisterTypeOnce_Internal StaticRegisterType{};
+};
+
+/**
+ * Will register the member variable when the type is constructed using the values inside of the constructor.
+ * When this struct is initialized as a static or global variable, the member will be registered before the main function.
+ * @see RegisterField
+ * @see GLAS_MEMBER
+ * @warning deprecated
+ */
+struct GlasAutoRegisterMember
+{
+	template <typename Class>
+	GlasAutoRegisterMember(Class*, glas::VariableId memberId, std::string_view fieldName, uint32_t offset, uint32_t size, uint32_t align, glas::MemberProperties properties = glas::DefaultMemberProperties)
+	{
+		glas::RegisterField<Class>(memberId, fieldName, offset, size, align, properties);
+	}
+};
+
+template <size_t ID>
+struct GlasClassMemberAccess
+{
+	inline static std::pair<glas::TypeId, uint32_t> MemberAccess{}; // ClassType / memberOffset
+
+	static glas::MemberInfo* GetMember()
+	{
+		return const_cast<glas::MemberInfo*>(MemberAccess.first.GetMemberInfo(MemberAccess.second));
+	}
+
+	static void SetRuntimeProperties(std::string_view name, glas::MemberProperties properties = glas::DefaultMemberProperties)
+	{
+		auto member = GetMember();
+		assert(member);
+		member->Name = name;
+		member->Properties = properties;
+	}
+};
+
+template <auto Member, size_t ID>
+struct GlasRegisterMemberType
+{
+	template <size_t ID, typename Class, typename T>
+	static void* RegisterCompileTimeData(T Class::* member)
+	{
+		const glas::MemberInfo& memberInfo = RegisterField<Class>(
+			glas::VariableId::Create<T>(),
+			"",
+			static_cast<uint32_t>(reinterpret_cast<size_t>(&(*static_cast<Class*>(nullptr).*member))),
+			sizeof(decltype(member)),
+			alignof(decltype(member)),
+			glas::DefaultMemberProperties
+		);
+
+		GlasClassMemberAccess<ID>::MemberAccess = std::pair<glas::TypeId, uint32_t>(glas::TypeId::Create<Class>(), memberInfo.Offset);
+
+		return nullptr;
+	}
+
+	inline static const void* TypeAccessData = RegisterCompileTimeData<ID>(Member);
+};
+
+template <size_t ID>
+struct GlasAutoMemberVariableDataSetter
+{
+	GlasAutoMemberVariableDataSetter(std::string_view name, glas::MemberProperties properties = glas::DefaultMemberProperties)
+	{
+		GlasClassMemberAccess<ID>::SetRuntimeProperties(name, properties);
+	}
+};
+
+/**
+ * Will register the function when an instance of the type is constructed.
+ * When this struct is initialized as a static or global variable, the function will be registered before the main function.
+ * @see RegisterFunction
+ * @see GLAS_FUNCTION
+ */
+struct GlasAutoRegisterFunction
+{
+	template <typename ReturnType, typename ... ParameterTypes>
+	GlasAutoRegisterFunction(ReturnType(*function)(ParameterTypes...), std::string_view name, glas::FunctionProperties properties = glas::DefaultFunctionProperties)
+	{
+		glas::RegisterFunction(function, name, properties);
+	}
+};
+
+/**
+ * Will register the member method when an instance of the type is constructed.
+ * When this struct is initialized as a static or global variable, the method will be registered before the main function.
+ * @see RegisterMethodFunction
+ * @see RegisterConstMethodFunction
+ * @see GLAS_MEMBER
+ */
+struct GlasAutoRegisterMemberFunction
+{
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	GlasAutoRegisterMemberFunction(ReturnType(Class::*function)(ParameterTypes...), std::string_view name, glas::FunctionProperties properties = glas::DefaultFunctionProperties)
+	{
+		glas::RegisterMethodFunction(function, name, properties);
+	}
+	template <typename Class, typename ReturnType, typename ... ParameterTypes>
+	GlasAutoRegisterMemberFunction(ReturnType(Class::* function)(ParameterTypes...) const, std::string_view name, glas::FunctionProperties properties = glas::DefaultFunctionProperties)
+	{
+		glas::RegisterConstMethodFunction(function, name, properties);
+	}
+};
+
+/**
+ * Will register the parent-child relationship in the reflection system when a instance of the type is constructed.
+ * When this struct is initialized as a static or global variable, the relationship will be registered before the main function.
+ * @see RegisterChild
+ * @see GlasAutoRegisterChildOnce
+ * @see GLAS_CHILD
+ */
+template <typename Parent, typename Child>
+struct GlasAutoRegisterChild
+{
+	GlasAutoRegisterChild()
+	{
+		glas::RegisterChild<Parent, Child>();
+	}
+};
+
+/**
+ * Will register the parent-child relationship in the reflection system whenever an instance of this class exists.
+ * @see GlasAutoRegisterChild
+ * @see RegisterChild
+ * @see GLAS_CHILD
+ */
+template <typename Parent, typename Child>
+struct GlasAutoRegisterChildOnce
+{
+private:
+	struct GlasAutoRegisterChildOnce_Internal
+	{
+		GlasAutoRegisterChildOnce_Internal()
+		{
+			glas::RegisterChild<Parent, Child>();
+		}
+	};
+	inline static GlasAutoRegisterChildOnce_Internal StaticRegisterType{};
+};
+
 
 /**
  * Internal Macros
@@ -1026,21 +1028,21 @@ namespace glas
 #define _GLAS_CONCAT_(a,b) a ## b
 
 /** Creates an inline static variable to register the Given Type.*/
-#define _GLAS_TYPE_INTERNAL(TYPE, ID) inline static glas::AutoRegisterType<TYPE> _GLAS_CONCAT_(RegisterType_, ID) {};
+#define _GLAS_TYPE_INTERNAL(TYPE, ID) inline static GlasAutoRegisterType<TYPE> _GLAS_CONCAT_(RegisterType_, ID) {};
 
 /** Creates an inline static variable that registers a member variable.*/
-//#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::AutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
-#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) namespace glas{ template struct glas::RegisterMemberType<&TYPE::MEMBER, ID>; } \
-inline static glas::AutoMemberVariableDataSetter<ID> _GLAS_CONCAT_(RegisterMember_, ID){#MEMBER, PROPERTIES};
+//#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::GlasAutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
+#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) template struct GlasRegisterMemberType<&TYPE::MEMBER, ID>; \
+inline static GlasAutoMemberVariableDataSetter<ID> _GLAS_CONCAT_(RegisterMember_, ID){#MEMBER, PROPERTIES};
 
 /** Creates an inline static variable that registers a function.*/
-#define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static glas::AutoRegisterFunction _GLAS_CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
+#define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static GlasAutoRegisterFunction _GLAS_CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
 
 /** Creates an inline static variable that registers a member function.*/
-#define _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, ID) inline static glas::AutoRegisterMemberFunction _GLAS_CONCAT_(RegisterMemberFunction_, ID) {&CLASS::FUNCTION, #FUNCTION, PROPS};
+#define _GLAS_MEMBER_FUNCTION_INTERNAL(CLASS, FUNCTION, PROPS, ID) inline static GlasAutoRegisterMemberFunction _GLAS_CONCAT_(RegisterMemberFunction_, ID) {&CLASS::FUNCTION, #FUNCTION, PROPS};
 
 /** Creates an inline static variable that registers a parent-child relationship.*/
-#define _GLAS_CHILD_INTERNAL(BASE, CHILD, ID) inline static glas::AutoRegisterChildOnce<BASE, CHILD> _GLAS_CONCAT_(RegisterChild_, ID) {};
+#define _GLAS_CHILD_INTERNAL(BASE, CHILD, ID) inline static GlasAutoRegisterChildOnce<BASE, CHILD> _GLAS_CONCAT_(RegisterChild_, ID) {};
 
 
 

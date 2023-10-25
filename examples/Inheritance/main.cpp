@@ -53,7 +53,7 @@ namespace glas
 		{
 			std::cout << "Registered Value with TestDependency\n";
 		}
-		inline static AutoRegisterTypeOnce<T> RegisterValue{};
+		inline static GlasAutoRegisterTypeOnce<T> RegisterValue{};
 	};
 
 	template <>
@@ -63,7 +63,7 @@ namespace glas
 		{
 			std::cout << "Registered Value with Transform\n";
 		}
-		inline static AutoRegisterTypeOnce<ComponentBase> RegisterComponent{};
+		inline static GlasAutoRegisterTypeOnce<ComponentBase> RegisterComponent{};
 	};
 }
 
