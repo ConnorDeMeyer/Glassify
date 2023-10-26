@@ -44,7 +44,8 @@ namespace glas::Storage
 		if constexpr (EnableSwapping<T>)
 			info.Swap = [](void* lhs, void* rhs)
 			{
-				std::swap(*static_cast<T*>(lhs), *static_cast<T*>(rhs));
+				using std::swap;
+				swap(*static_cast<T*>(lhs), *static_cast<T*>(rhs));
 			};
 	}
 

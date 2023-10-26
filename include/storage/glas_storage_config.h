@@ -21,7 +21,13 @@ namespace glas
 namespace glas::Storage
 {
 	template <typename T>
-	concept Swappable = requires(T & lhs, T & rhs) { std::swap(lhs, rhs); };
+	concept STDSwappable = requires(T & lhs, T & rhs) { std::swap(lhs, rhs); };
+
+	template <typename T>
+	concept AlternativeSwappable = requires(T & lhs, T & rhs) { swap(lhs, rhs); };
+
+	template <typename T>
+	concept Swappable = STDSwappable<T> || AlternativeSwappable<T>;
 }
 
 /**

@@ -1,5 +1,6 @@
 ﻿
 #include <random>
+#include <utility>
 
 #include "glassify.h"
 
@@ -184,13 +185,13 @@ namespace StorageTest
 	{
 		static constexpr std::string_view ConstructionMessage = "Constructed";
 		static constexpr std::string_view DestructionMessage = "Destructed";
-		static constexpr std::string_view MoveConstructionMessage = "Copy Constructed";
-		static constexpr std::string_view CopyConstructionMessage = "Move Constructed";
+		static constexpr std::string_view CopyConstructionMessage = "Copy Constructed";
+		static constexpr std::string_view MoveConstructionMessage = "Move Constructed";
 
 		VerboseClass() { PrintMessage(ConstructionMessage); }
 		~VerboseClass() { PrintMessage(DestructionMessage); }
-		VerboseClass(const VerboseClass&) { PrintMessage(CopyConstructionMessage); }
-		VerboseClass(VerboseClass&&) noexcept { PrintMessage(MoveConstructionMessage); }
+		VerboseClass(const VerboseClass& other) { PrintMessage(CopyConstructionMessage); ID = other.ID; }
+		VerboseClass(VerboseClass&& other) noexcept { PrintMessage(MoveConstructionMessage); ID = other.ID; }
 
 		void SayHello() { std::cout << "Hello world, my ID is: " << ID << '\n'; }
 
@@ -204,63 +205,124 @@ namespace StorageTest
 		std::string_view LastMessage;
 	};
 
+	void swap(VerboseClass& lhs, VerboseClass& rhs) noexcept
+	{
+		std::swap(lhs.ID, rhs.ID);
+	}
+
 	GLAS_TYPE(VerboseClass);
 
 	using namespace glas::Storage;
 
 	TEST_CASE("Storage Type info", "[TypeInfo]")
 	{
+		/**
+		 * get reflection info of the VerboseClass
+		 */
 		auto verboseClassId = glas::TypeId::Create<VerboseClass>();
 		auto info = verboseClassId.GetInfo();
 
+		/**
+		 * allocate memory for the type.
+		 */
 		auto data = std::make_unique<uint8_t[]>(info.Size);
-		// not yet initialized
-		auto classInstance = reinterpret_cast<VerboseClass*>(data.get());
+		auto classInstance = reinterpret_cast<VerboseClass*>(data.get()); // not yet initialized
 
+		/**
+		 * Construct the type
+		 */
 		info.Constructor(data.get());
 		REQUIRE(classInstance->LastMessage == VerboseClass::ConstructionMessage);
 
+		/**
+		 * Check the initialization
+		 */
 		REQUIRE(classInstance->ID == 0);
 		classInstance->SayHello();
 
+		/**
+		 * Modify the type
+		 */
 		classInstance->ID = 42;
 		REQUIRE(classInstance->ID == 42);
 		classInstance->SayHello();
 
+		/**
+		 * Destruct the type
+		 */
 		info.Destructor(data.get());
 		REQUIRE(classInstance->LastMessage == VerboseClass::DestructionMessage); // unsafe
 	}
 
 	TEST_CASE("Storage Type info Copy", "[TypeInfoCopy]")
 	{
+		/**
+		 * get reflection info of the VerboseClass
+		 */
 		auto verboseClassId = glas::TypeId::Create<VerboseClass>();
 		auto info = verboseClassId.GetInfo();
 
+		/**
+		 * allocate memory for 2 instances of the type.
+		 */
 		auto data = std::make_unique<uint8_t[]>(info.Size);
-		// not yet initialized
-		auto classInstance = reinterpret_cast<VerboseClass*>(data.get());
-
-		info.Constructor(data.get());
-		REQUIRE(classInstance->LastMessage == VerboseClass::ConstructionMessage);
-
-		REQUIRE(classInstance->ID == 0);
-		classInstance->SayHello();
-
-		classInstance->ID = 42;
-		REQUIRE(classInstance->ID == 42);
-		classInstance->SayHello();
-
-
+		auto classInstance1 = reinterpret_cast<VerboseClass*>(data.get()); // not yet initialized
 		auto data2 = std::make_unique<uint8_t[]>(info.Size);
-		// not yet initialized
-		auto classInstance2 = reinterpret_cast<VerboseClass*>(data2.get());
+		auto classInstance2 = reinterpret_cast<VerboseClass*>(data2.get()); // not yet initialized
 
+		/**
+		 * Construct the first instance
+		 */
+		info.Constructor(data.get());
+		REQUIRE(classInstance1->LastMessage == VerboseClass::ConstructionMessage);
+
+		/**
+		 * Modify the first instance
+		 */
+		classInstance1->ID = 42;
+		REQUIRE(classInstance1->ID == 42);
+		classInstance1->SayHello();
+
+
+		/**
+		 * Construct the second instance using the copy constructor to make a copy of the first instance.
+		 */
 		info.CopyConstructor(data2.get(), data.get());
 		REQUIRE(classInstance2->LastMessage == VerboseClass::CopyConstructionMessage);
 
+		/**
+		 * Check if it is a copy
+		 */
+		REQUIRE(classInstance2->ID == 42);
+		classInstance2->SayHello();
 
+		/**
+		 * Modify the copy
+		 */
+		classInstance2->ID = 12;
+
+		/**
+		 * Check if the copy has been modified and the original is still the same.
+		 */
+		REQUIRE(classInstance1->ID == 42);
+		REQUIRE(classInstance2->ID == 12);
+
+		/**
+		 * Swap them both using the Swap function pointer.
+		 */
+		info.Swap(classInstance1, classInstance2);
+
+		/**
+		 * Check if they have been swapped
+		 */
+		REQUIRE(classInstance1->ID == 12);
+		REQUIRE(classInstance2->ID == 42);
+
+		/**
+		 * Destruct both instances.
+		 */
 		info.Destructor(data.get());
-		REQUIRE(classInstance->LastMessage == VerboseClass::DestructionMessage); // unsafe
+		REQUIRE(classInstance1->LastMessage == VerboseClass::DestructionMessage); // unsafe
 
 		info.Destructor(data2.get());
 		REQUIRE(classInstance2->LastMessage == VerboseClass::DestructionMessage); // unsafe
