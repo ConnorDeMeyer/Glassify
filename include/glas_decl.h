@@ -896,25 +896,50 @@ struct GlasAutoRegisterMember
 	}
 };
 
-template <size_t ID>
-struct GlasClassMemberAccess
+/**
+ * This section is for registering member variables.
+ * It is more complex than the other registrations because this allows the registration of private member variables too.
+ * We need to register the data in 2 steps.
+ * 1. We register the "compile" type information (TypeId, offset, size, alignment)
+ * 2. We register information that cannot be obtained by checking compile time data (Name and properties).
+ */
+namespace GlasMemberRegistration
 {
-	inline static std::pair<glas::TypeId, uint32_t> MemberAccess{}; // ClassType / memberOffset
-
-	static glas::MemberInfo* GetMember()
+	inline auto& GetRegisteredMembers()
 	{
-		return const_cast<glas::MemberInfo*>(MemberAccess.first.GetMemberInfo(MemberAccess.second));
+		static std::unordered_map<size_t, std::pair<glas::TypeId, uint32_t>> RegisteredMembers;
+		return RegisteredMembers;
 	}
 
-	static void SetRuntimeProperties(std::string_view name, glas::MemberProperties properties = glas::DefaultMemberProperties)
+	inline void RegisterMemberWithId(size_t id, std::pair<glas::TypeId, uint32_t> memberAccess)
 	{
-		auto member = GetMember();
+		GetRegisteredMembers().emplace(id, memberAccess);
+	}
+
+	inline glas::MemberInfo* GetMember(size_t id)
+	{
+		auto& member = GetRegisteredMembers()[id];
+		return const_cast<glas::MemberInfo*>(member.first.GetMemberInfo(member.second));
+	}
+
+	inline void SetRuntimeProperties(size_t id, std::string_view name, glas::MemberProperties properties = glas::DefaultMemberProperties)
+	{
+		auto member = GetMember(id);
 		assert(member);
 		member->Name = name;
 		member->Properties = properties;
 	}
-};
+}
 
+/**
+ * Will register the compile time information about member variables whenever a proper instantiation of this type is created.
+ * Usage: `template struct GlasRegisterMemberType<&CLASS::MEMBER, UNIQUE ID>`.
+ * Putting this somewhere in the program will run the RegisterCompileTimeData function with the member pointer given in the template parameter.
+ * We call this function because the `inline static const void* TypeAccessData` will construct itself using the result of the function.
+ * Inside of the function we can infer the owning class and type of the member variable (only works with member variables and not functions).
+ * This also works with with private and protected members because of the following rule: [temp.spec.general]/6 https://timsong-cpp.github.io/cppwp/n4868/temp.spec.general#6.
+ * "The usual access checking rules do not apply to names in a declaration of an explicit instantiation or explicit specialization"
+ */
 template <auto Member, size_t ID>
 struct GlasRegisterMemberType
 {
@@ -930,7 +955,7 @@ struct GlasRegisterMemberType
 			glas::DefaultMemberProperties
 		);
 
-		GlasClassMemberAccess<ID>::MemberAccess = std::pair<glas::TypeId, uint32_t>(glas::TypeId::Create<Class>(), memberInfo.Offset);
+		GlasMemberRegistration::RegisterMemberWithId(ID, std::pair<glas::TypeId, uint32_t>(glas::TypeId::Create<Class>(), memberInfo.Offset));
 
 		return nullptr;
 	}
@@ -938,12 +963,11 @@ struct GlasRegisterMemberType
 	inline static const void* TypeAccessData = RegisterCompileTimeData<ID>(Member);
 };
 
-template <size_t ID>
 struct GlasAutoMemberVariableDataSetter
 {
-	GlasAutoMemberVariableDataSetter(std::string_view name, glas::MemberProperties properties = glas::DefaultMemberProperties)
+	GlasAutoMemberVariableDataSetter(size_t id, std::string_view name, glas::MemberProperties properties = glas::DefaultMemberProperties)
 	{
-		GlasClassMemberAccess<ID>::SetRuntimeProperties(name, properties);
+		GlasMemberRegistration::SetRuntimeProperties(id, name, properties);
 	}
 };
 
@@ -1033,7 +1057,7 @@ private:
 /** Creates an inline static variable that registers a member variable.*/
 //#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::GlasAutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
 #define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) template struct GlasRegisterMemberType<&TYPE::MEMBER, ID>; \
-inline static GlasAutoMemberVariableDataSetter<ID> _GLAS_CONCAT_(RegisterMember_, ID){#MEMBER, PROPERTIES};
+inline static GlasAutoMemberVariableDataSetter _GLAS_CONCAT_(RegisterMember_, ID){ID, #MEMBER, PROPERTIES};
 
 /** Creates an inline static variable that registers a function.*/
 #define _GLAS_FUNCTION_INTERNAL(FUNCTION, ID, PROPS) inline static GlasAutoRegisterFunction _GLAS_CONCAT_(RegisterFunction_, ID) {FUNCTION, #FUNCTION, PROPS};
