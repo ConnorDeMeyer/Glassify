@@ -19,33 +19,33 @@ namespace glas::Storage
 	{
 		if constexpr (EnableDefaultConstructor<T>)
 			info.Constructor = [](void* location)
-		{
-			new (location) T();
-		};
+			{
+				new (location) T();
+			};
 
 		if constexpr (EnableCopyConstructor<T>)
 			info.CopyConstructor = [](void* location, const void* other)
-		{
-			new (location) T(*static_cast<const T*>(other));
-		};
+			{
+				new (location) T(*static_cast<const T*>(other));
+			};
 
 		if constexpr (EnableMoveConstructor<T>)
 			info.MoveConstructor = [](void* location, void* other)
-		{
-			new (location) T(std::move(*static_cast<T*>(other)));
-		};
+			{
+				new (location) T(std::move(*static_cast<T*>(other)));
+			};
 
 		if constexpr (EnableDestructor<T>)
 			info.Destructor = [](void* data)
-		{
-			static_cast<T*>(data)->~T();
-		};
+			{
+				static_cast<T*>(data)->~T();
+			};
 
 		if constexpr (EnableSwapping<T>)
 			info.Swap = [](void* lhs, void* rhs)
-		{
-			std::swap(*static_cast<T*>(lhs), *static_cast<T*>(rhs));
-		};
+			{
+				std::swap(*static_cast<T*>(lhs), *static_cast<T*>(rhs));
+			};
 	}
 
 	/** HELPER FUNCTIONS */

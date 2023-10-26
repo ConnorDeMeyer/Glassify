@@ -227,6 +227,29 @@ namespace StorageTest
 		REQUIRE(classInstance->ID == 42);
 		classInstance->SayHello();
 
+		info.Destructor(data.get());
+		REQUIRE(classInstance->LastMessage == VerboseClass::DestructionMessage); // unsafe
+	}
+
+	TEST_CASE("Storage Type info Copy", "[TypeInfoCopy]")
+	{
+		auto verboseClassId = glas::TypeId::Create<VerboseClass>();
+		auto info = verboseClassId.GetInfo();
+
+		auto data = std::make_unique<uint8_t[]>(info.Size);
+		// not yet initialized
+		auto classInstance = reinterpret_cast<VerboseClass*>(data.get());
+
+		info.Constructor(data.get());
+		REQUIRE(classInstance->LastMessage == VerboseClass::ConstructionMessage);
+
+		REQUIRE(classInstance->ID == 0);
+		classInstance->SayHello();
+
+		classInstance->ID = 42;
+		REQUIRE(classInstance->ID == 42);
+		classInstance->SayHello();
+
 
 		auto data2 = std::make_unique<uint8_t[]>(info.Size);
 		// not yet initialized
@@ -241,6 +264,32 @@ namespace StorageTest
 
 		info.Destructor(data2.get());
 		REQUIRE(classInstance2->LastMessage == VerboseClass::DestructionMessage); // unsafe
+	}
+
+	TEST_CASE("Random Type Storage", "[RandomTypeInfo]")
+	{
+		for (size_t i{}; i < 10; ++i)
+		{
+			const auto& allTypeInfo = glas::GetAllTypeInfo();
+
+			auto randomIt = allTypeInfo.begin();
+			std::advance(randomIt, rand() % allTypeInfo.size());
+
+			glas::TypeId typeId = randomIt->first;
+			const glas::TypeInfo& TypeInfo = randomIt->second;
+
+			if (!TypeInfo.Constructor || !TypeInfo.Destructor)
+				continue;
+
+			auto randomTypeInstance = std::make_unique<uint8_t[]>(TypeInfo.Size);
+			TypeInfo.Constructor(randomTypeInstance.get());
+
+			std::cout << "Created Type " << TypeInfo.Name << '\n';
+			glas::Serialization::Serialize(std::cout, randomTypeInstance.get(), typeId);
+			std::cout << '\n';
+
+			TypeInfo.Destructor(randomTypeInstance.get());
+		}
 	}
 
 	TEST_CASE("Type Storage", "[TypeStorage]")
