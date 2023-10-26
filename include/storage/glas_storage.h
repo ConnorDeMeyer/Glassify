@@ -607,7 +607,9 @@ namespace glas::Storage
 	{
 		if (m_Data)
 		{
-			auto& destructor = m_ContainedType.GetInfo().Destructor;
+			const auto destructor = m_ContainedType.GetInfo().Destructor;
+
+			assert(destructor);
 
 			for (auto& element : *this)
 			{
@@ -623,8 +625,10 @@ namespace glas::Storage
 		if (other.m_ContainedType.IsValid())
 		{
 			const auto& info = m_ContainedType.GetInfo();
-			const auto& copyConstructor = info.CopyConstructor;
+			const auto copyConstructor = info.CopyConstructor;
+
 			assert(copyConstructor);
+
 			m_ElementSize = info.Size;
 
 			ReserveUninitialized(other.Size());
@@ -654,7 +658,10 @@ namespace glas::Storage
 		assert(AssertType(type));
 
 		const auto& info = type.GetInfo();
-		const auto& constructor = info.Constructor;
+		const auto constructor = info.Constructor;
+
+		assert(constructor);
+
 		m_ElementSize = info.Size;
 
 		ReserveUninitialized(count);
@@ -676,7 +683,10 @@ namespace glas::Storage
 		assert(AssertType(type));
 
 		const auto& info = type.GetInfo();
-		const auto& copyConstructor = info.CopyConstructor;
+		const auto copyConstructor = info.CopyConstructor;
+
+		assert(copyConstructor);
+
 		m_ElementSize = info.Size;
 
 		ReserveUninitialized(count);
@@ -785,7 +795,9 @@ namespace glas::Storage
 			ReserveUninitialized(other.m_Size);
 
 			const auto& info = m_ContainedType.GetInfo();
-			const auto& copyConstructor = info.CopyConstructor;
+			const auto copyConstructor = info.CopyConstructor;
+
+			assert(copyConstructor);
 
 			for (size_t i{}; i < Size(); ++i)
 			{
@@ -867,7 +879,7 @@ namespace glas::Storage
 		}
 
 		const auto& info = m_ContainedType.GetInfo();
-		const auto& constructor = info.Constructor;
+		const auto constructor = info.Constructor;
 
 		assert(constructor);
 
@@ -886,7 +898,7 @@ namespace glas::Storage
 		}
 
 		const auto& info = m_ContainedType.GetInfo();
-		const auto& copyConstructor = info.CopyConstructor;
+		const auto copyConstructor = info.CopyConstructor;
 
 		assert(copyConstructor);
 
@@ -905,7 +917,7 @@ namespace glas::Storage
 		}
 
 		const auto& info = m_ContainedType.GetInfo();
-		const auto& moveConstructor = info.MoveConstructor;
+		const auto moveConstructor = info.MoveConstructor;
 
 		assert(moveConstructor);
 
@@ -933,7 +945,9 @@ namespace glas::Storage
 		assert(Size() > 0);
 
 		const auto& info = m_ContainedType.GetInfo();
-		const auto& destructor = info.Destructor;
+		const auto destructor = info.Destructor;
+
+		assert(destructor);
 
 		destructor(Back());
 		--m_Size;
@@ -944,7 +958,9 @@ namespace glas::Storage
 		assert(Size() - amount > 0);
 
 		const auto& info = m_ContainedType.GetInfo();
-		const auto& destructor = info.Destructor;
+		const auto destructor = info.Destructor;
+
+		assert(destructor);
 
 		for (size_t i{ Size() - amount }; i < Size(); ++i)
 		{
@@ -956,7 +972,9 @@ namespace glas::Storage
 	inline void TypeVector::Clear()
 	{
 		const auto& info = m_ContainedType.GetInfo();
-		const auto& destructor = info.Destructor;
+		const auto destructor = info.Destructor;
+
+		assert(destructor);
 
 		for (auto& element : *this)
 		{
@@ -1008,7 +1026,7 @@ namespace glas::Storage
 	inline void TypeVector::SwapRemove(size_t index)
 	{
 		const auto& info = m_ContainedType.GetInfo();
-		const auto& swap = info.Swap;
+		const auto swap = info.Swap;
 
 		assert(swap);
 
@@ -1029,7 +1047,7 @@ namespace glas::Storage
 	inline void TypeVector::MoveToNewBuffer(std::unique_ptr<uint8_t[]>& buffer)
 	{
 		const auto& info = m_ContainedType.GetInfo();
-		const auto& moveConstructor = info.MoveConstructor;
+		const auto moveConstructor = info.MoveConstructor;
 
 		assert(moveConstructor);
 
