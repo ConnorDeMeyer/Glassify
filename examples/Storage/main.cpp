@@ -210,9 +210,9 @@ namespace StorageTest
 		std::swap(lhs.ID, rhs.ID);
 	}
 
-	GLAS_TYPE(VerboseClass);
-
 	using namespace glas::Storage;
+
+	GLAS_TYPE(VerboseClass);
 
 	TEST_CASE("Storage Type info", "[TypeInfo]")
 	{
@@ -306,17 +306,23 @@ namespace StorageTest
 		 */
 		REQUIRE(classInstance1->ID == 42);
 		REQUIRE(classInstance2->ID == 12);
+		classInstance1->SayHello();
+		classInstance2->SayHello();
+
 
 		/**
 		 * Swap them both using the Swap function pointer.
 		 */
 		info.Swap(classInstance1, classInstance2);
+		std::cout << "swapped\n";
 
 		/**
 		 * Check if they have been swapped
 		 */
 		REQUIRE(classInstance1->ID == 12);
 		REQUIRE(classInstance2->ID == 42);
+		classInstance1->SayHello();
+		classInstance2->SayHello();
 
 		/**
 		 * Destruct both instances.
@@ -332,24 +338,30 @@ namespace StorageTest
 	{
 		for (size_t i{}; i < 10; ++i)
 		{
+			// Get all type infos in the reflection system
 			const auto& allTypeInfo = glas::GetAllTypeInfo();
 
+			// get a random one
 			auto randomIt = allTypeInfo.begin();
 			std::advance(randomIt, rand() % allTypeInfo.size());
 
 			glas::TypeId typeId = randomIt->first;
 			const glas::TypeInfo& TypeInfo = randomIt->second;
 
+			// if no constructor or destructor, continue
 			if (!TypeInfo.Constructor || !TypeInfo.Destructor)
 				continue;
 
+			// allocate and construct
 			auto randomTypeInstance = std::make_unique<uint8_t[]>(TypeInfo.Size);
 			TypeInfo.Constructor(randomTypeInstance.get());
 
+			// serialize to std::cout;
 			std::cout << "Created Type " << TypeInfo.Name << '\n';
 			glas::Serialization::Serialize(std::cout, randomTypeInstance.get(), typeId);
-			std::cout << '\n';
+			std::cout << "\n\n\n";
 
+			// destruct
 			TypeInfo.Destructor(randomTypeInstance.get());
 		}
 	}
