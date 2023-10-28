@@ -5,6 +5,8 @@ It allows the user to easily reflect upon types wherever they are inside of the 
 ## Requisites
 C++ 20
 
+In case you're using a static library: add the `/WHOLEARCHIVE`/`--whole-archive` linker flag for MSVC/GCC. This makes sure that every object of the library is included in the build. Sometimes entire source files will get excluded because the reflection system makes the linker unable to tell which object files are accessed during runtime. In case you get LNK2005 errors, consider using the `/FORCE:MULTIPLE`/`--allow-multiple-definition` linker flag.
+
 ## Installation
 Simply include the `include` folder into your project.
 `#include "glassify.h"` should be used at the top of any file that wishes to use the reflection system.
