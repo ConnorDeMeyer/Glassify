@@ -5,7 +5,7 @@ It allows the user to easily reflect upon types wherever they are inside of the 
 ## Requisites
 C++ 20
 
-In case you're using a static library: add the `/WHOLEARCHIVE`/`--whole-archive` linker flag for MSVC/GCC. This makes sure that every object of the library is included in the build. Sometimes entire source files will get excluded because the reflection system makes the linker unable to tell which object files are accessed during runtime. In case you get LNK2005 errors, consider using the `/FORCE:MULTIPLE`/`--allow-multiple-definition` linker flag.
+In case you're using a static library: add the `/WHOLEARCHIVE`/`--whole-archive` linker flag for MSVC/GCC. In case you get LNK2005 errors, consider using the `/FORCE:MULTIPLE`/`--allow-multiple-definition` linker flag.
 
 ## Installation
 Simply include the `include` folder into your project.
@@ -15,45 +15,18 @@ Simply include the `include` folder into your project.
 The example directory should not be included into an existing project and only exists for testing and providing basic examples.
 
 ## Customizing Glassify
-some features of glassify are able to be customized to fit the needs of the developer:
+There are various features/Addons that can be toggled on that are off by default to save on compilation time:
+To enable/disable any of these features, the respective macros must be defined at the top of the `glas_decl.h` file.
 
-The developer is able to choose which reflection data is stored inside the `glas::TypeInfo` struct by modyfing the contents of the `glas_config.h` file.
+- `GLAS_STORAGE`: Used for constructing and destructing instance of types. [More Info](#Storage).
+- `GLAS_SERIALIZATION_BINARY`: Used for serializing and deserializing type instances to binary streams. [More Info](#Serialization).
+- `GLAS_SERIALIZATION_JSON`: Used for Serializing and deserializing type instances to JSon format. [More Info](#Serialization).
+- `GLAS_SERIALIZATION_YAML`: Used for Serializing and deserializing type instances to YAML format. [More Info](#Serialization).
 
-Inside of the config file the developer may add any variable that he might need for his program inside of the TypeInfo struct.
-
-The newly added variable should then be filled inside of the `TypeInfo::Create()` function below the struct definition.
-
-There are addons that can be toggled on or off by commenting out the `#define` for each addon
-
-### glas_config.h
-the `glas_config.h` file contains information about the information that will be stored for each type.
-the information that is stored by default is:
- - Name of the Type
- - Size of the type
- - Alignment of the type
- - v-table pointer in case the type is polymorphic (experimental feature)
- - Vector of Member variable info owned by the type
- - Vector of Methods owned by the type
- - Base classes of the type
- - Child classes of the type
-
-It also contains 2 optional addons to the system:
-###### Storage
- - Function pointer to construct the type
- - Function pointer to copy construct the type
- - Function pointer to move construct the type
- - Function pointer to destruct the type
- - Function pointer to swap the type
-###### Serialization
-- Function pointer to serialize the type to json
-- Function pointer to serialize the type to binary
-- Function pointer to deserialize the type from json
-- Function pointer to deserialize the type from binary
-###### Custom
- This section is reserved for the developer to add any necessary information
-
-### glas_properties.h
-the `glas_properties.h` file contains customizable properties that can be placed on member variables and functions.
+### Custom member variable/function properties
+There are 2 enum class at the top of the `glas_decl.h` file:
+1. `MemberProperties`: Customizable properties for member variables.
+2. `FunctionProperties`: Customizable properties for functions and methods.
 
 ## Usage
 
@@ -80,7 +53,7 @@ glas::GetAllTypeInfo()
 ```
 
 #### Type Info
-`glas::TypeInfo` is a struct containing the type information that can normally only be accessed at compile time. the information in this struct can be customized inside of the `glas_config.h` file.
+`glas::TypeInfo` is a struct containing the type information that can normally only be accessed at compile time. the information in this struct can be customized inside of the `glas_decl.h` file.
 
 
 ### Reflecting Member Variables
@@ -95,6 +68,10 @@ GLAS_MEMBER(Vector, X);
 GLAS_MEMBER(Vector, Y);
 GLAS_MEMBER(Vector, Z);
 ```
+
+#### Reflecting Private Member Variables
+Private member variables can be reflected with the `GLAS_PRIVATE_MEMBER(CLASS, MEMBER)` macro. This macro *cannot* be placed inside of a namespace.
+
 #### Variable Identifier
 Variables can be identified using a `glas::VariableId`. This type holds a `glas::TypeId` and keeps track of the modifying factors like if it is _const_, _volatile_, _reference_, _r value reference_, _pointers_, _Array size_. This information can be freely queried and modified depending on the use of the type. It also contains a `ToString` method that allows for better representation of the variable type.
 
@@ -172,80 +149,70 @@ Please look inside of `glas_dependencies.h` for more examples. These `AddDepende
 # Addons
 Addons are useful features that come with Glassify that can be completely removed from the project if the developer has no need for them
 
-## Serialization
+## Binary Serialization
 
-This features allows the user to serialize a class to either JSon or Binary. The `#define GLAS_SERIALIZATION` macro must be defined inside of the `glas_config.h` file. In order to serialize member variables, the `GLAS_MEMBER` macro must be used to register the member variables into the reflection system.
+This features allows the user to serialize a type to Binary. The `#define GLAS_SERIALIZATION_BINARY` macro must be defined inside of the `glas_decl.h` file. In order to serialize member variables, the `GLAS_MEMBER` macro must be used to register the member variables into the reflection system.
 
 ### Usage
 
 ```cpp
-glas::Serialization::SerializeType(std::ostream& stream, const void* data, TypeId type)
-glas::Serialization::SerializeType(std::ostream& stream, const TYPE& type)
+glas::Serialization::SerializeBinary(std::ostream& stream, const TYPE& value);
+glas::Serialization::DeserializeBinary(std::istream& stream, TYPE& value);
 ```
-These function allow the user to serialize a type to a stream in JSon format.
-
+### Custom Serializer
 ```cpp
-glas::Serialization::SerializeTypeBinary(std::ostream& stream, const void* data, TypeId type)
-glas::Serialization::SerializeTypeBinary(std::ostream& stream, const TYPE& type)
-```
-These function allow the user to serialize a type to a stream in Binary format.
-
-```cpp
-glas::Serialization::DeserializeType(std::istream& stream, void* data, TypeId type)
-glas::Serialization::DeserializeType(std::ostream& stream, const TYPE& type)
-```
-These function allow the user to deserialize a type from a stream that is in JSon format. It will fill the values gotten from the stream into the instance of the type.
-
-```cpp
-glas::Serialization::DeserializeTypeBinary(std::istream& stream, void* data, TypeId type)
-glas::Serialization::DeserializeTypeBinary(std::ostream& stream, const TYPE& type)
-```
-These function allow the user to deserialize a type from a stream that is in Binary format. It will fill the values gotten from the stream into the instance of the type.
-
-### Customizing
-
-The developer can implement their own type Serialization functions to be used inside of the Serialization system. There are 2 ways to implement serialization for custom types:
-1. Inside of the custom type that wants to be serialized there must exist specific functions with the right naming convention and parameters that the Serialization system can call. This method works great for higher level code (example: GameComponents)
-2. Declare and define the custom serialization functions inside the `glas_serialization_config.h` and the `glas_serialization.h` file. This method must be used when using types that cannot be modified like classes from low level libraries and different frameworks (example: std containers).
-
-Please look at the `glas_serialization.h` file to see examples.
-
-#### Method 1: Serialization defined outside the Serialization System headers.
-To implement serialization for custom types the user must add the following 2 public methods inside of the class for JSon serialization:
-```cpp
-void GlasSerialize(std::ostream& oStream) const;
-void GlasDeserialize(std::istream& iStream);
-```
-and the following 2 for binary serialization:
-```cpp
-void GlasSerializeBinary(std::ostream& oStream) const;
-void GlasDeserializeBinary(std::istream& iStream);
+template <>
+struct BinarySerializer<TYPE>
+{
+	static void Serialize(std::ostream& stream, const TYPE& value);
+	static void Deserialize(std::istream& stream, TYPE& value);
+};
 ```
 
-You can query whether the functions are correctly implemented by using the following static asserts:
+## JSon Serialization
+
+This features allows the user to serialize a type to JSon. The `#define GLAS_SERIALIZATION_JSON` macro must be defined inside of the `glas_decl.h` file. In order to serialize member variables, the `GLAS_MEMBER` macro must be used to register the member variables into the reflection system.
+
+### Usage
+
 ```cpp
-static_assert(CustomSerializer<TYPE>);
-static_assert(CustomSerializerBinary<TYPE>);
-static_assert(CustomDeserializer<TYPE>);
-static_assert(CustomDeserializerBinary<TYPE>);
+glas::Serialization::SerializeJSon(std::ostream& stream, const TYPE& type);
+glas::Serialization::DeserializeJSon(std::istream& stream, TYPE& value);
+```
+### Custom Serializer
+```cpp
+template <>
+struct JSonSerializer<TYPE>
+{
+	static void Serialize(rapidjson::Value& jsonVal, const TYPE& value, RapidJsonAllocator& allocator);
+	static void Deserialize(rapidjson::Value& jsonVal, TYPE& value);
+};
 ```
 
-#### Method 2: Serialization defined inside the Serialization System headers
-For this method you must modify the `glas_serialization.h` and `glas_serialization_config.h` files. The serialization functions must be declared before the Serialization System implementation in the `glas_serialization.h` file. The serialization functions are declared inside of the `glas_serialization_config.h` file and they are implemented inside of the `glas_serialization.h` file.
-To add JSon serialization for a custom type, the developer must declare and define the following functions:
+## YAML Serialization
+
+This features allows the user to serialize a type to YAML. The `#define GLAS_SERIALIZATION_YAML` macro must be defined inside of the `glas_decl.h` file. In order to serialize member variables, the `GLAS_MEMBER` macro must be used to register the member variables into the reflection system.
+
+### Usage
+
 ```cpp
-inline void Serialize(std::ostream& stream, const TYPE& value);
-inline void Deserialize(std::istream& stream, TYPE& value);
+glas::Serialization::SerializeYaml(std::ostream& stream, const TYPE& type);
+glas::Serialization::DeserializeYaml(std::istream& stream, TYPE& value);
 ```
-To add binary Serialization for a custom type, the following functions must be declared and defined:
+### Custom Serializer
 ```cpp
-inline void SerializeBinary(std::ostream& stream, const TYPE& value);
-inline void DeserializeBinary(std::istream& stream, TYPE& value);
+template<>
+struct convert
+{
+    static Node encode(const TYPE& value);
+
+    static bool decode(const Node& node, TYPE& rhs);
+};
 ```
 
 ## Storage
 
-This feature allows the user to store and initialize instances of types at runtime using only the `glas::TypeId`.
+This feature allows the user to store and initialize instances of types at runtime using only the `glas::TypeId`. The `#define GLAS_STORAGE` macro must be defined inside of the `glas_decl.h` file.
 
 ### Settings
 
