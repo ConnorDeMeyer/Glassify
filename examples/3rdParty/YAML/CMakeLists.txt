@@ -57,8 +57,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 # Output directory
 ################################################################################
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    OUTPUT_DIRECTORY_DEBUG   "${CMAKE_SOURCE_DIR}/lib/$<CONFIG>/$ENV{PlatformTarget}/"
-    OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/lib/$<CONFIG>/$ENV{PlatformTarget}/"
+    OUTPUT_DIRECTORY_DEBUG   "${CMAKE_BINARY_DIR}/lib/$<CONFIG>/$ENV{PlatformTarget}/"
+    OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/lib/$<CONFIG>/$ENV{PlatformTarget}/"
 	INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
 )
 
