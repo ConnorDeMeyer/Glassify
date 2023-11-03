@@ -59,7 +59,7 @@ namespace glas::Serialization
 		DeserializeYaml(stream, &value, TypeId::Create<T>());
 	}
 
-	YAML::Node SerializeYamlDefault(const void* data, glas::TypeId type)
+	inline YAML::Node SerializeYamlDefault(const void* data, glas::TypeId type)
 	{
 		YAML::Node node; 
 
@@ -77,7 +77,7 @@ namespace glas::Serialization
 		return node;
 	}
 
-	bool DeserializeYamlDefault(const YAML::Node& node, void* data, glas::TypeId type)
+	inline bool DeserializeYamlDefault(const YAML::Node& node, void* data, glas::TypeId type)
 	{
 		auto& info = type.GetInfo();
 

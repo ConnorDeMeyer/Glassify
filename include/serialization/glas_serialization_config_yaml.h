@@ -34,16 +34,16 @@ namespace glas::Serialization
 
 namespace glas::Serialization
 {
-	void SerializeYaml(std::ostream& stream, const void* value, TypeId type);
-	void DeserializeYaml(std::istream& stream, void* value, TypeId type);
+	inline void SerializeYaml(std::ostream& stream, const void* value, TypeId type);
+	inline void DeserializeYaml(std::istream& stream, void* value, TypeId type);
 
 	template <typename T>
 	void SerializeYaml(std::ostream& stream, const T& value);
 	template <typename T>
 	void DeserializeYaml(std::istream& stream, T& value);
 
-	YAML::Node SerializeYamlDefault(const void* data, glas::TypeId type);
-	bool DeserializeYamlDefault(const YAML::Node& node, void* data, glas::TypeId type);
+	inline YAML::Node SerializeYamlDefault(const void* data, glas::TypeId type);
+	inline bool DeserializeYamlDefault(const YAML::Node& node, void* data, glas::TypeId type);
 }
 
 namespace YAML
