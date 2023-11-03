@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef GLAS_STORAGE
+
 #include <span>
 #include <tuple>
 #include <memory>
@@ -63,6 +65,10 @@ namespace glas::Storage
 	template <typename T>
 	constexpr void FillTypeInfo(TypeInfo& info);
 
+	/**
+	 * Manages an instance of a type similarly to how std::unique_ptr manages memory.
+	 * Whenever an instance of this class goes out of scope and an instance of a type is stored, it will call the destructor before freeing the memory.
+	 */
 	class TypeStorage final
 	{
 	public:
@@ -70,9 +76,9 @@ namespace glas::Storage
 		TypeStorage() = default;
 		~TypeStorage();
 
-		TypeStorage(const TypeStorage& other) = delete;
+		TypeStorage(const TypeStorage& other);
 		TypeStorage(TypeStorage&& other) noexcept;
-		TypeStorage& operator=(const TypeStorage& other) = delete;
+		TypeStorage& operator=(const TypeStorage& other);
 		TypeStorage& operator=(TypeStorage&& other) noexcept;
 	public:
 
@@ -147,7 +153,7 @@ namespace glas::Storage
 	public:
 
 		TypeId GetType() const { return m_TypeId; }
-		void* GetData() const { return m_Data.get(); }
+		void* GetData() const { return m_Data.get()->get(); }
 
 		template <typename T>
 		T* As();
@@ -157,7 +163,7 @@ namespace glas::Storage
 		static SharedTypeStorage Initialize();
 
 	private:
-		std::shared_ptr<uint8_t[]> m_Data{};
+		std::shared_ptr<std::unique_ptr<uint8_t[]>> m_Data{};
 		TypeId m_TypeId{};
 	};
 
@@ -176,14 +182,19 @@ namespace glas::Storage
 
 		SharedTypeStorage GetSharedStorage() const;
 		TypeId GetType() const { return m_TypeId; }
-		void* GetData() const { return m_Data.lock().get(); }
+		void* GetData() const { return m_Data.lock().get()->get(); }
 		bool Expired() const { return m_Data.expired(); }
 
 	private:
-		std::weak_ptr<uint8_t[]> m_Data{};
+		std::weak_ptr<std::unique_ptr<uint8_t[]>> m_Data{};
 		TypeId m_TypeId{};
 	};
 
+	/**
+	 * Container for storing instances of types similar to std::tuple.
+	 * Any combination of types can be stored in this container.
+	 * Because references can normally not be stored, the reference flag will be removed and the whole type will be stored.
+	 */
 	class TypeTuple final
 	{
 	public:
@@ -210,7 +221,6 @@ namespace glas::Storage
 
 		template <typename... T>
 		static TypeTuple CreateNoReferences();
-		static TypeTuple CreateNoReferences(std::span<const VariableId> variables);
 		template <typename... T>
 		static TypeTuple CreateNoReferences(T&&... val);
 
@@ -291,7 +301,7 @@ namespace glas::Storage
 
 	protected:
 
-		uint8_t* BytePtr() requires !IsConst { return static_cast<uint8_t*>(m_Ptr); }
+		uint8_t* BytePtr() requires (!IsConst) { return static_cast<uint8_t*>(m_Ptr); }
 		const uint8_t* BytePtr() const { return static_cast<const uint8_t*>(m_Ptr); }
 
 	protected:
@@ -394,7 +404,8 @@ namespace glas::Storage
 
 		template <typename T> TypeVector(size_t count, const T& value);
 
-		//template <typename T> explicit TypeVector(std::initializer_list<T> initializer);
+		template <typename T> TypeVector(const std::vector<T>& vector) requires (!std::is_pointer_v<T>);
+		template <typename T> TypeVector(std::vector<T>&& vector)requires (!std::is_pointer_v<T>);
 
 		TypeVector& operator=(const TypeVector& other);
 		TypeVector& operator=(TypeVector&& other) noexcept;
@@ -472,3 +483,5 @@ namespace glas::Storage
 		uint32_t					m_ElementSize	{ };
 	};
 }
+
+#endif
