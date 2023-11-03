@@ -8,7 +8,6 @@ set(Header_Files
     "../../include/glas_dependencies.h"
     "../../include/glas_enum.h"
     "../../include/glas_impl.h"
-    "../../include/glas_properties.h"
     "../../include/glassify.h"
     "../../include/serialization/glas_serialization_binary.h"
     "../../include/serialization/glas_serialization_config_binary.h"
