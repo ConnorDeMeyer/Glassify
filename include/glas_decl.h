@@ -15,6 +15,16 @@
 
 #include "glas_properties.h"
 
+/** External dependencies*/
+#ifdef GLAS_SERIALIZATION_JSON
+#include "serialization/Json3rdParty/rapidjson/rapidjson.h"
+#include "serialization/Json3rdParty/rapidjson/document.h"
+#endif
+
+#ifdef GLAS_SERIALIZATION_YAML
+#include "serialization/YAML3rdParty/yaml.h"
+#endif
+
 namespace glas
 {
 	//https://stackoverflow.com/questions/35941045/can-i-obtain-c-type-names-in-a-constexpr-way
@@ -289,7 +299,7 @@ namespace glas
 	struct MemberInfo final
 	{
 		std::string			Name		{ }; /**< Name of the member variable*/
-		VariableId			VariableId	{ }; /**< Type Information about the member variable*/
+		VariableId			Variable	{ }; /**< Type Information about the member variable*/
 		uint32_t			Offset		{ }; /**< Offset of the member variable inside of the owning class*/
 		uint32_t			Size		{ }; /**< Size of the member variable inside of the owning class*/
 		uint32_t			Align		{ }; /**< Alignment of the member variable inside of the owning class*/
@@ -354,10 +364,20 @@ namespace glas
 		 * @param 1 TypeTuple containing the data of the parameters to call the function
 		 * @param 2 optional address of a uninitialized variable that will be set when the function returns a value.
 		 * @see Call
-		 * @see MethodCall
 		 * @see TypeTuple
 		 */
 		void(*FunctionCaller)(const void*, Storage::TypeTuple&, void*);
+
+		/**
+		 * Function pointer containing a call to a lambda that will execute the registered method with the parameters inside a TypeTuple.
+		 * @param 0 address of the function
+		 * @param 1 address instance of the owning type
+		 * @param 2 TypeTuple containing the data of the parameters to call the function
+		 * @param 3 optional address of a uninitialized variable that will be set when the function returns a value.
+		 * @see MethodCall
+		 * @see TypeTuple
+		 */
+		void(*MethodCaller)(const void*, void*, Storage::TypeTuple&, void*);
 
 	public:
 
@@ -422,8 +442,19 @@ namespace glas
 		 */
 		constexpr bool IsPropertySet(FunctionProperties property) const;
 
-		/** Returns true if the function stored is a property*/
-		constexpr bool IsMethod() const { return OwningType.IsValid(); }
+		/** Returns true if the function stored is a method*/
+		constexpr bool IsMethod() const { return MethodCaller; }
+
+		/**
+		 * Check if the the given variables would be compatible with this function.
+		 * First we check if the amount of types and the types are the same.
+		 * Then we check if the variables and parameters are the same type.
+		 * If the other variable is const but the function requires a reference or pointer that is not const, it is invalid.
+		 * If the other variable is a pointer, but a reference is needed, then it is still valid.
+		 * if the function parameter is a pointer, but the other variable is an instance, then it is still valid.
+		 * @param otherVariables the variables that will be used to call the function.
+		 */
+		bool IsCompatible(std::span<const VariableId> otherVariables) const;
 	};
 
 	/**
@@ -440,6 +471,7 @@ namespace glas
 		constexpr FunctionId(uint64_t functionHash) : m_FunctionHash{ functionHash } {}
 	public:
 		constexpr uint64_t GetId() const { return m_FunctionHash; }
+		void SetId(uint64_t id) { m_FunctionHash = id; }
 
 		/**
 		 * Get the FunctionInfo associated with this function
@@ -567,6 +599,163 @@ namespace glas
 		 */
 		template <typename Parent, typename Child>
 		static constexpr BaseClassInfo Create();
+	};
+
+	/**
+	* TypeInfo holds information about each type
+	*/
+
+	struct TypeInfo final
+	{
+		/** Name of the type. */
+		std::string					Name{ };
+
+		/**
+		 * Size of the type gathered using sizeof().
+		 * @see sizeof
+		 */
+		uint32_t					Size{ };
+
+		/**
+		 * Alignment of the type gathered using alignof()
+		 * @see alignof
+		 */
+		uint32_t					Align{ };
+
+		/**
+		 * v-table pointer of the type in case the type is polymorphic
+		 * @warning experimental
+		 */
+		void* VTable{ };
+
+		/**
+		 * Member variables that have been registered to this type.
+		 * @see MemberInfo
+		 * @see GlasAutoRegisterMember
+		 * @see GLAS_MEMBER
+		 */
+		std::vector<MemberInfo>		Members{ };
+
+		/**
+		 * Member Functions that have been registered to this type.
+		 * @see FunctionId
+		 * @see GlasAutoRegisterFunction
+		 * @see GLAS_FUNCTION
+		 */
+		std::vector<FunctionId>		MemberFunctions{ };
+
+		/**
+		 * Base classes of this type that have been registered.
+		 * @see BaseClassInfo
+		 * @see GlasAutoRegisterChildOnce
+		 * @see GLAS_CHILD
+		 */
+		std::vector<BaseClassInfo>	BaseClasses{ };
+
+		/**
+		 * Child classes of this type that have been registered.
+		 * @see TypeId
+		 * @see GlasAutoRegisterChildOnce
+		 * @see GLAS_CHILD
+		 */
+		std::vector<TypeId>			ChildClasses{ };
+
+#ifdef GLAS_STORAGE
+		/**
+		 * Function pointer that constructs the type in place at the given address.
+		 * @param 0 address for construction
+		 */
+		void (*Constructor)			(void*) { };
+
+		/**
+		 * Function pointer that constructs the type in place at the given address using the copy constructor.
+		 * @param 0 address for construction
+		 * @param 1 address of copyable type instance
+		 * @see EnableCopyConstructor
+		 */
+		void (*CopyConstructor)		(void*, const void*) { };
+
+		/**
+		 * Function pointer that constructs the type in place at the given address using the move constructor.
+		 * @param 0 address for construction
+		 * @param 1 address of moveable type instance
+		 * @see EnableMoveConstructor
+		 */
+		void (*MoveConstructor)		(void*, void*) { };
+
+		/**
+		 * Function pointer that destructs the type at the given address
+		 * @param 0 address for destruction
+		 */
+		void (*Destructor)			(void*) { };
+
+		/**
+		 * Function pointer that swaps two instances of a type
+		 * @param 0 address of type instance 1
+		 * @param 1 address of type instance 2
+		 */
+		void (*Swap)				(void*, void*) { };
+#endif // GLASS_STORAGE
+#ifdef GLAS_SERIALIZATION_JSON
+		using RapidJsonAllocator = RAPIDJSON_DEFAULT_ALLOCATOR;
+		/**
+		 * Function pointer that serializes the given type instance to a stream in json format
+		 * @param 0 Rapid JSon Value
+		 * @param 1 address of type instance that will be serialized
+		 * @param 2 Rapid JSon Allocator
+		 * @see Serialize
+		 * @see GlasSerialize
+		 */
+		void (*JSonSerializer)		(rapidjson::Value&, const void*, RapidJsonAllocator&) { };
+
+		/**
+		 * Function pointer that initializes a type instance using a stream in json format
+		 * @param 0 in stream containing data of type
+		 * @param 1 address of type instance that will be initialized
+		 * @see Deserialize
+		 * @see GlasDeserialize
+		 */
+		void (*JSonDeserializer)	(rapidjson::Value&, void*) { };
+#endif // GLAS_SERIALIZATION_JSON
+#ifdef GLAS_SERIALIZATION_BINARY
+		/**
+		 * Function pointer that serialized the given type instance to a stream in binary format
+		 * @param 0 out stream for serialization
+		 * @param 1 address of type instance that will be serialized
+		 * @see SerializeBinary
+		 * @see GlasSerializeBinary
+		 */
+		void (*BinarySerializer)	(std::ostream&, const void*) { };
+
+		/**
+		 * Function pointer that initialized a type instance using a stream in binary format
+		 * @param 0 in stream containing data of type
+		 * @param 1 address of type instance that will be initialized
+		 * @see DeserializeBinary
+		 * @see GlasDeserializeBinary
+		 */
+		void (*BinaryDeserializer)	(std::istream&, void*) { };
+#endif // GLAS_SERIALIZATION_BINARY
+#ifdef GLAS_SERIALIZATION_YAML
+
+		YAML::Node(*YamlSerializer)		(const void* data) { };
+
+		void (*YamlDeserializer)	(const YAML::Node& node, void* data) { };
+
+#endif // GLAS_SERIALIZATION_YAML
+
+		/**
+		 * Add custom Type Information variables here
+		 */
+
+
+
+		 /**
+		  * End of Custom Type Information Variables
+		  */
+
+		template <typename T>
+		static TypeInfo Create();
 	};
 }
 
@@ -840,6 +1029,17 @@ namespace glas
 	template <typename Parent, typename Child>
 	constexpr void RegisterChild();
 
+
+	inline const void* VoidOffset(const void* data, size_t offset)
+	{
+		return static_cast<const uint8_t*>(data) + offset;
+	}
+
+	inline void* VoidOffset(void* data, size_t offset)
+	{
+		return static_cast<uint8_t*>(data) + offset;
+	}
+
 }
 
 /** STATIC REGISTRATION*/
@@ -885,7 +1085,6 @@ private:
  * When this struct is initialized as a static or global variable, the member will be registered before the main function.
  * @see RegisterField
  * @see GLAS_MEMBER
- * @warning deprecated
  */
 struct GlasAutoRegisterMember
 {
@@ -943,7 +1142,7 @@ namespace GlasMemberRegistration
 template <auto Member, size_t ID>
 struct GlasRegisterMemberType
 {
-	template <size_t ID, typename Class, typename T>
+	template <typename Class, typename T>
 	static void* RegisterCompileTimeData(T Class::* member)
 	{
 		const glas::MemberInfo& memberInfo = RegisterField<Class>(
@@ -960,7 +1159,7 @@ struct GlasRegisterMemberType
 		return nullptr;
 	}
 
-	inline static const void* TypeAccessData = RegisterCompileTimeData<ID>(Member);
+	inline static const void* TypeAccessData = RegisterCompileTimeData(Member);
 };
 
 struct GlasAutoMemberVariableDataSetter
@@ -1055,8 +1254,10 @@ private:
 #define _GLAS_TYPE_INTERNAL(TYPE, ID) inline static GlasAutoRegisterType<TYPE> _GLAS_CONCAT_(RegisterType_, ID) {};
 
 /** Creates an inline static variable that registers a member variable.*/
-//#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static glas::GlasAutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
-#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) template struct GlasRegisterMemberType<&TYPE::MEMBER, ID>; \
+#define _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) inline static GlasAutoRegisterMember _GLAS_CONCAT_(RegisterMember_, ID) { static_cast<TYPE*>(nullptr), glas::VariableId::Create<decltype(TYPE::MEMBER)>(), #MEMBER, offsetof(TYPE, MEMBER), sizeof(decltype(TYPE::MEMBER)), alignof(decltype(TYPE::MEMBER)), PROPERTIES};
+
+/** Creates an inline static variable that registers a private member variable*/
+#define _GLAS_PRIVATE_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, ID) template struct GlasRegisterMemberType<&TYPE::MEMBER, ID>; \
 inline static GlasAutoMemberVariableDataSetter _GLAS_CONCAT_(RegisterMember_, ID){ID, #MEMBER, PROPERTIES};
 
 /** Creates an inline static variable that registers a function.*/
@@ -1080,7 +1281,12 @@ inline static GlasAutoMemberVariableDataSetter _GLAS_CONCAT_(RegisterMember_, ID
 /** Register a member variable with properties.*/
 #define GLAS_MEMBER_PROP(TYPE, MEMBER, PROPERTIES)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, __COUNTER__)
 /** Register a member variable with default properties.*/
-#define GLAS_MEMBER(TYPE, MEMBER)  _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, glas::DefaultMemberProperties, __COUNTER__)
+#define GLAS_MEMBER(TYPE, MEMBER) _GLAS_MEMBER_INTERNAL(TYPE, MEMBER, glas::DefaultMemberProperties, __COUNTER__)
+
+/** Register a private member variable with properties. This can only be used inside of the global namespace (not withing a namespace).*/
+#define GLAS_PRIVATE_MEMBER_PROP(TYPE, MEMBER, PROPERTIES) _GLAS_PRIVATE_MEMBER_INTERNAL(TYPE, MEMBER, PROPERTIES, __COUNTER__)
+/** Register a private member variable with default properties. This can only be used inside of the global namespace (not withing a namespace).*/
+#define GLAS_PRIVATE_MEMBER(TYPE, MEMBER) _GLAS_PRIVATE_MEMBER_INTERNAL(TYPE, MEMBER, glas::DefaultMemberProperties, __COUNTER__)
 
 /** Get the function ID from the given function.*/
 #define GLAS_FUNCTION_ID(FUNCTION) glas::FunctionId::Create(FUNCTION, #FUNCTION)
