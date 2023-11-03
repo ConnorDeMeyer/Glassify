@@ -7,6 +7,11 @@
 #define CATCH_CONFIG_MAIN
 #include "../3rdParty/catch2/catch.hpp"
 
+#include "serialization/Json3rdParty/rapidjson/rapidjson.h"
+#include "serialization/Json3rdParty/rapidjson/document.h"
+#include "serialization/Json3rdParty/rapidjson/stringbuffer.h"
+#include "serialization/Json3rdParty/rapidjson/prettywriter.h"
+
 using namespace glas::Serialization;
 
 namespace SerializeTest
@@ -20,6 +25,7 @@ namespace SerializeTest
 
 	GLAS_TYPE(Vector);
 
+	//GlasRegisterMemberType<&::SerializeTest::Vector::X, 4000> RegisterX;
 	GLAS_MEMBER(Vector, X);
 	GLAS_MEMBER(Vector, Y);
 	GLAS_MEMBER(Vector, Z);
@@ -40,7 +46,6 @@ namespace SerializeTest
 		Quaternion Rotation{};
 		Vector Scale{ 1, 1, 1 };
 	};
-
 	GLAS_MEMBER(Transform, Translation);
 	GLAS_MEMBER(Transform, Rotation);
 	GLAS_MEMBER(Transform, Scale);
@@ -48,22 +53,25 @@ namespace SerializeTest
 	class GameObject final
 	{
 	public:
-		auto& GetTransform() { return Transform; }
+		auto& GetTransform() { return GlobalTransform; }
 		auto& GetName() { return Name; }
 		auto& GetId() { return Id; }
 		void Randomize();
 	private:
-		Transform Transform{};
+		Transform GlobalTransform{};
 		std::string Name{ "None" };
 		uint32_t Id{};
 
 		friend struct RegisterGameObject;
 	};
+}
 
-	GLAS_MEMBER(GameObject, Name);
-	GLAS_MEMBER(GameObject, Id);
-	GLAS_MEMBER(GameObject, Transform);
+GLAS_PRIVATE_MEMBER(SerializeTest::GameObject, Name);
+GLAS_PRIVATE_MEMBER(SerializeTest::GameObject, Id);
+GLAS_PRIVATE_MEMBER(SerializeTest::GameObject, GlobalTransform);
 
+namespace SerializeTest
+{
 	class Scene final
 	{
 	public:
@@ -77,11 +85,13 @@ namespace SerializeTest
 
 		friend struct RegisterScene;
 	};
+}
+GLAS_PRIVATE_MEMBER(SerializeTest::Scene, Name);
+GLAS_PRIVATE_MEMBER(SerializeTest::Scene, Objects);
+GLAS_PRIVATE_MEMBER(SerializeTest::Scene, ObjectsMap);
 
-	GLAS_MEMBER(Scene, Name);
-	GLAS_MEMBER(Scene, Objects);
-	GLAS_MEMBER(Scene, ObjectsMap);
-
+namespace SerializeTest
+{
 	struct TestClass
 	{
 		std::array<int, 6> Array{};
@@ -103,73 +113,7 @@ namespace SerializeTest
 	GLAS_MEMBER(TestClass, List);
 	GLAS_MEMBER(TestClass, ForList);
 
-	struct CustomSerialization
-	{
-		void GlasSerialize(std::ostream& /*oStream*/) const {}
-		void GlasDeserialize(std::istream& /*iStream*/) {}
-		void GlasSerializeBinary(std::ostream& /*oStream*/) const {}
-		void GlasDeserializeBinary(std::istream& /*iStream*/) {}
-	};
 
-	static_assert(CustomSerializer<CustomSerialization>);
-	static_assert(CustomSerializerBinary<CustomSerialization>);
-	static_assert(CustomDeserializer<CustomSerialization>);
-	static_assert(CustomDeserializerBinary<CustomSerialization>);
-
-	//int main()
-	//{
-	//	GameObject object{};
-	//
-	//	object.Randomize();
-	//
-	//	glas::Serialization::Serialize(std::cout, object);
-	//
-	//	std::stringstream copyStream{};
-	//	
-	//	glas::Serialization::Serialize(copyStream, object);
-	//	GameObject objectCopy{};
-	//	glas::Serialization::Deserialize(copyStream, objectCopy);
-	//	
-	//	std::cout << "\n\n";
-	//	
-	//	glas::Serialization::Serialize(std::cout, objectCopy);
-	//	
-	//	Scene scene{};
-	//	scene.GetName() = "Scene01";
-	//	scene.GetOjects().emplace_back().Randomize();
-	//	scene.GetOjects().emplace_back().Randomize();
-	//	scene.GetMap().emplace(0, GameObject{}).first->second.Randomize();
-	//	scene.GetMap().emplace(1, GameObject{}).first->second.Randomize();
-	//	scene.GetMap().emplace(2, GameObject{}).first->second.Randomize();
-	//	
-	//	std::cout << "\n\n";
-	//	
-	//	glas::Serialization::Serialize(std::cout, scene);
-	//	
-	//	std::cout << "\n\n";
-	//	
-	//	copyStream.str("");
-	//	glas::Serialization::SerializeBinary(copyStream, scene);
-	//	Scene sceneCopy{};
-	//	glas::Serialization::DeserializeBinary(copyStream, sceneCopy);
-	//	
-	//	glas::Serialization::Serialize(std::cout, sceneCopy);
-	//	
-	//	std::cout << "\n\n";
-	//	
-	//	TestClass testClass{};
-	//	testClass.Array = { 1,2,3,4,5,6 };
-	//	testClass.Deque = { 1,2,3,4,5,6,7,8 };
-	//	testClass.ForList = { 1,2,3,4,5,6,7,8 };
-	//	testClass.List = { 1,2,3,4,5,6,7,8 };
-	//	testClass.Set = { 1,2,3,4,5,6,7,8 };
-	//	testClass.UnSet = { 1,2,3,4,5,6,7,8 };
-	//	testClass.Map = { {1,2}, {3,4}, {5,6} };
-	//	testClass.UnMap = { {1,2}, {3,4}, {5,6} };
-	//	glas::Serialization::Serialize(std::cout, testClass);
-	//	
-	//	std::cout << "\n\n";
-	//}
 
 	std::random_device g_RandomDevice;
 	std::default_random_engine g_Engine(g_RandomDevice());
@@ -177,16 +121,16 @@ namespace SerializeTest
 	void GameObject::Randomize()
 	{
 		std::uniform_real_distribution<float> distribution(-100.f, 100.f);
-		Transform.Rotation.X = distribution(g_Engine);
-		Transform.Rotation.Y = distribution(g_Engine);
-		Transform.Rotation.Z = distribution(g_Engine);
-		Transform.Rotation.W = distribution(g_Engine);
-		Transform.Scale.X = distribution(g_Engine);
-		Transform.Scale.Y = distribution(g_Engine);
-		Transform.Scale.Z = distribution(g_Engine);
-		Transform.Translation.X = distribution(g_Engine);
-		Transform.Translation.Y = distribution(g_Engine);
-		Transform.Translation.Z = distribution(g_Engine);
+		GlobalTransform.Rotation.X = distribution(g_Engine);
+		GlobalTransform.Rotation.Y = distribution(g_Engine);
+		GlobalTransform.Rotation.Z = distribution(g_Engine);
+		GlobalTransform.Rotation.W = distribution(g_Engine);
+		GlobalTransform.Scale.X = distribution(g_Engine);
+		GlobalTransform.Scale.Y = distribution(g_Engine);
+		GlobalTransform.Scale.Z = distribution(g_Engine);
+		GlobalTransform.Translation.X = distribution(g_Engine);
+		GlobalTransform.Translation.Y = distribution(g_Engine);
+		GlobalTransform.Translation.Z = distribution(g_Engine);
 
 		std::uniform_int_distribution<uint32_t> intDistribution{};
 		Id = intDistribution(g_Engine);
@@ -207,20 +151,31 @@ namespace SerializeTest
 			Vector vector{};
 			std::stringstream stream{};
 
-			Serialize(stream, vector);
+			SerializeJSon(stream, vector);
 			std::string streamString = stream.str();
 
-			REQUIRE(streamString == "{\"X\": 0,\"Y\": 0,\"Z\": 0}");
+			REQUIRE(streamString ==
+				R"teststr({
+    "X": 0.0,
+    "Y": 0.0,
+    "Z": 0.0
+})teststr");
 
 			vector.X = 5.f;
 			vector.Y = -1.5f;
 			vector.Z = 300.f;
 
 			stream.str("");
-			Serialize(stream, vector);
+			SerializeJSon(stream, vector);
 			streamString = stream.str();
 
-			REQUIRE(streamString == "{\"X\": 5,\"Y\": -1.5,\"Z\": 300}");
+			REQUIRE(streamString ==
+				R"teststr({
+    "X": 5.0,
+    "Y": -1.5,
+    "Z": 300.0
+})teststr");
+
 		}
 
 		SECTION("std::vector")
@@ -229,16 +184,24 @@ namespace SerializeTest
 				std::vector<int> vector{ 1,2,3,4,5,6 };
 				std::stringstream stream{};
 
-				Serialize(stream, vector);
+				SerializeJSon(stream, vector);
 				std::string streamString = stream.str();
 
-				REQUIRE(streamString == "[1,2,3,4,5,6]");
+				REQUIRE(streamString ==
+					R"teststr([
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+])teststr");
 			}
 			{
 				std::vector<int> vector{ };
 				std::stringstream stream{};
 
-				Serialize(stream, vector);
+				SerializeJSon(stream, vector);
 				std::string streamString = stream.str();
 
 				REQUIRE(streamString == "[]");
@@ -251,63 +214,45 @@ namespace SerializeTest
 				std::map<std::string, std::string> map{ {"1", "2"}, {"test space", "-=-=-="} };
 				std::stringstream stream{};
 
-				Serialize(stream, map);
+				SerializeJSon(stream, map);
 				std::string streamString = stream.str();
 
-				REQUIRE(streamString == "{\"1\": \"2\",\"test space\": \"-=-=-=\"}");
+				REQUIRE(streamString ==
+					R"teststr([
+    {
+        "First": "1",
+        "Second": "2"
+    },
+    {
+        "First": "test space",
+        "Second": "-=-=-="
+    }
+])teststr");
 			}
 
 			{
 				std::map<int, std::string> map{ {1, "2"}, {5, "-=-=-="} };
 				std::stringstream stream{};
 
-				Serialize(stream, map);
+				SerializeJSon(stream, map);
 				std::string streamString = stream.str();
 
-				REQUIRE(streamString == "{1: \"2\",5: \"-=-=-=\"}");
+				REQUIRE(streamString ==
+					R"teststr([
+    {
+        "First": 1,
+        "Second": "2"
+    },
+    {
+        "First": 5,
+        "Second": "-=-=-="
+    }
+])teststr");
 			}
 		}
 	}
 
-	TEST_CASE("floating point Serialization", "[float]")
-	{
-		SECTION("float")
-		{
-			float val{};
-			val = INFINITY;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = -INFINITY;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = NAN;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = -NAN;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-		}
-		SECTION("double")
-		{
-			double val{};
-			val = INFINITY;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = -INFINITY;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = NAN;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = -NAN;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-		}
-		SECTION("long double")
-		{
-			long double val{};
-			val = INFINITY;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = -INFINITY;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = NAN;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-			val = -NAN;
-			REQUIRE_THROWS(Serialize(std::cout, val));
-		}
-	}
+
 
 	TEST_CASE("Vector Serialization", "[Vector]")
 	{
@@ -315,52 +260,60 @@ namespace SerializeTest
 		{
 			Vector vector{};
 			Vector vector2{};
-			std::stringstream stream{};
+			{
+				std::stringstream stream{};
 
-			Serialize(stream, vector);
-			Deserialize(stream, vector2);
+				SerializeJSon(stream, vector);
+				DeserializeJSon(stream, vector2);
 
-			REQUIRE(vector2.X == vector.X);
-			REQUIRE(vector2.Y == vector.Y);
-			REQUIRE(vector2.Z == vector.Z);
+				REQUIRE(vector2.X == vector.X);
+				REQUIRE(vector2.Y == vector.Y);
+				REQUIRE(vector2.Z == vector.Z);
+			}
+			{
+				std::stringstream stream{};
 
-			vector.X = 5.f;
-			vector.Y = -1.5f;
-			vector.Z = 999.99f;
+				vector.X = 5.f;
+				vector.Y = -1.5f;
+				vector.Z = 999.99f;
 
-			stream.str("");
-			Serialize(stream, vector);
-			Deserialize(stream, vector2);
+				SerializeJSon(stream, vector);
+				DeserializeJSon(stream, vector2);
 
-			REQUIRE(vector2.X == vector.X);
-			REQUIRE(vector2.Y == vector.Y);
-			REQUIRE(vector2.Z == vector.Z);
+				REQUIRE(vector2.X == vector.X);
+				REQUIRE(vector2.Y == vector.Y);
+				REQUIRE(vector2.Z == vector.Z);
+			}
 		}
 
 		SECTION("Binary Serialization/Deserialization")
 		{
 			Vector vector{};
 			Vector vector2{};
-			std::stringstream stream{};
+			{
+				std::stringstream stream{};
 
-			SerializeBinary(stream, vector);
-			DeserializeBinary(stream, vector2);
+				SerializeBinary(stream, vector);
+				DeserializeBinary(stream, vector2);
 
-			REQUIRE(vector2.X == vector.X);
-			REQUIRE(vector2.Y == vector.Y);
-			REQUIRE(vector2.Z == vector.Z);
+				REQUIRE(vector2.X == vector.X);
+				REQUIRE(vector2.Y == vector.Y);
+				REQUIRE(vector2.Z == vector.Z);
+			}
+			{
+				std::stringstream stream{};
 
-			vector.X = 5.f;
-			vector.Y = -1.5f;
-			vector.Z = INFINITY;
+				vector.X = 5.f;
+				vector.Y = -1.5f;
+				vector.Z = INFINITY;
 
-			stream.str("");
-			SerializeBinary(stream, vector);
-			DeserializeBinary(stream, vector2);
+				SerializeBinary(stream, vector);
+				DeserializeBinary(stream, vector2);
 
-			REQUIRE(vector2.X == vector.X);
-			REQUIRE(vector2.Y == vector.Y);
-			REQUIRE(vector2.Z == vector.Z);
+				REQUIRE(vector2.X == vector.X);
+				REQUIRE(vector2.Y == vector.Y);
+				REQUIRE(vector2.Z == vector.Z);
+			}
 		}
 	}
 
@@ -370,94 +323,105 @@ namespace SerializeTest
 		{
 			Transform transform{};
 			Transform transform2{};
-			std::stringstream stream{};
+			{
+				std::stringstream stream{};
 
-			Serialize(stream, transform);
-			Deserialize(stream, transform2);
+				SerializeJSon(stream, transform);
+				DeserializeJSon(stream, transform2);
 
-			REQUIRE(transform.Translation.X == transform2.Translation.X);
-			REQUIRE(transform.Translation.Y == transform2.Translation.Y);
-			REQUIRE(transform.Translation.Z == transform2.Translation.Z);
-			REQUIRE(transform.Scale.X == transform2.Scale.X);
-			REQUIRE(transform.Scale.Y == transform2.Scale.Y);
-			REQUIRE(transform.Scale.Z == transform2.Scale.Z);
-			REQUIRE(transform.Rotation.X == transform2.Rotation.X);
-			REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
-			REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
-			REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+				REQUIRE(transform.Translation.X == transform2.Translation.X);
+				REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+				REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+				REQUIRE(transform.Scale.X == transform2.Scale.X);
+				REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+				REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+				REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+				REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+				REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+				REQUIRE(transform.Rotation.W == transform2.Rotation.W);
 
-			transform.Translation.X = 5.f;
-			transform.Translation.Y = -1.5f;
-			transform.Translation.Z = 999.99f;
-			transform.Scale.X = -500.323f;
-			transform.Scale.Y = -0.f;
-			transform.Scale.Z = 0;
-			transform.Rotation.X = -500.323f;
-			transform.Rotation.Y = -0.f;
-			transform.Rotation.Z = 23.4214f;
-			transform.Rotation.W = 64.513f;
+				transform.Translation.X = 5.f;
+				transform.Translation.Y = -1.5f;
+				transform.Translation.Z = 999.99f;
+				transform.Scale.X = -500.323f;
+				transform.Scale.Y = -0.f;
+				transform.Scale.Z = 0;
+				transform.Rotation.X = -500.323f;
+				transform.Rotation.Y = -0.f;
+				transform.Rotation.Z = 23.4214f;
+				transform.Rotation.W = 64.513f;
+			}
 
-			stream.str("");
-			Serialize(stream, transform);
-			Deserialize(stream, transform2);
+			{
+				std::stringstream stream{};
 
-			REQUIRE(transform.Translation.X == transform2.Translation.X);
-			REQUIRE(transform.Translation.Y == transform2.Translation.Y);
-			REQUIRE(transform.Translation.Z == transform2.Translation.Z);
-			REQUIRE(transform.Scale.X == transform2.Scale.X);
-			REQUIRE(transform.Scale.Y == transform2.Scale.Y);
-			REQUIRE(transform.Scale.Z == transform2.Scale.Z);
-			REQUIRE(transform.Rotation.X == transform2.Rotation.X);
-			REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
-			REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
-			REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+				SerializeJSon(stream, transform);
+				DeserializeJSon(stream, transform2);
+
+				REQUIRE(transform.Translation.X == transform2.Translation.X);
+				REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+				REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+				REQUIRE(transform.Scale.X == transform2.Scale.X);
+				REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+				REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+				REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+				REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+				REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+				REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+			}
 		}
 
 		SECTION("Binary Serialization/Deserialization")
 		{
 			Transform transform{};
 			Transform transform2{};
-			std::stringstream stream{};
 
-			SerializeBinary(stream, transform);
-			DeserializeBinary(stream, transform2);
+			{
+				std::stringstream stream{};
 
-			REQUIRE(transform.Translation.X == transform2.Translation.X);
-			REQUIRE(transform.Translation.Y == transform2.Translation.Y);
-			REQUIRE(transform.Translation.Z == transform2.Translation.Z);
-			REQUIRE(transform.Scale.X == transform2.Scale.X);
-			REQUIRE(transform.Scale.Y == transform2.Scale.Y);
-			REQUIRE(transform.Scale.Z == transform2.Scale.Z);
-			REQUIRE(transform.Rotation.X == transform2.Rotation.X);
-			REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
-			REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
-			REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+				SerializeBinary(stream, transform);
+				DeserializeBinary(stream, transform2);
 
-			transform.Translation.X = 5.f;
-			transform.Translation.Y = -1.5f;
-			transform.Translation.Z = 999.99f;
-			transform.Scale.X = -500.323f;
-			transform.Scale.Y = -0.f;
-			transform.Scale.Z = 0;
-			transform.Rotation.X = -500.323f;
-			transform.Rotation.Y = -0.f;
-			transform.Rotation.Z = 23.4214f;
-			transform.Rotation.W = 64.513f;
+				REQUIRE(transform.Translation.X == transform2.Translation.X);
+				REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+				REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+				REQUIRE(transform.Scale.X == transform2.Scale.X);
+				REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+				REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+				REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+				REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+				REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+				REQUIRE(transform.Rotation.W == transform2.Rotation.W);
 
-			stream.str("");
-			SerializeBinary(stream, transform);
-			DeserializeBinary(stream, transform2);
+				transform.Translation.X = 5.f;
+				transform.Translation.Y = -1.5f;
+				transform.Translation.Z = 999.99f;
+				transform.Scale.X = -500.323f;
+				transform.Scale.Y = -0.f;
+				transform.Scale.Z = 0;
+				transform.Rotation.X = -500.323f;
+				transform.Rotation.Y = -0.f;
+				transform.Rotation.Z = 23.4214f;
+				transform.Rotation.W = 64.513f;
+			}
 
-			REQUIRE(transform.Translation.X == transform2.Translation.X);
-			REQUIRE(transform.Translation.Y == transform2.Translation.Y);
-			REQUIRE(transform.Translation.Z == transform2.Translation.Z);
-			REQUIRE(transform.Scale.X == transform2.Scale.X);
-			REQUIRE(transform.Scale.Y == transform2.Scale.Y);
-			REQUIRE(transform.Scale.Z == transform2.Scale.Z);
-			REQUIRE(transform.Rotation.X == transform2.Rotation.X);
-			REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
-			REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
-			REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+			{
+				std::stringstream stream{};
+
+				SerializeBinary(stream, transform);
+				DeserializeBinary(stream, transform2);
+
+				REQUIRE(transform.Translation.X == transform2.Translation.X);
+				REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+				REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+				REQUIRE(transform.Scale.X == transform2.Scale.X);
+				REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+				REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+				REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+				REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+				REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+				REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+			}
 		}
 	}
 
@@ -477,7 +441,7 @@ namespace SerializeTest
 	TEST_CASE("Type Tuple Serialization", "[TypeTuple]")
 	{
 		glas::Storage::TypeTuple tuple(std::tuple<float, GameObject, int*>{ 5.f, GameObject{}, nullptr });
-		Serialize(std::cout, tuple);
+		SerializeJSon(std::cout, tuple);
 	}
 
 
@@ -500,15 +464,30 @@ namespace SerializeTest
 			}
 
 			std::stringstream stream;
-			glas::Serialization::Serialize(stream, vector);
+			SerializeJSon(stream, vector);
 
 			auto result = stream.str();
-			REQUIRE(result == "{14332516166325358969}:[{\"X\": 1,\"Y\": 2,\"Z\": 3},{\"X\": 4,\"Y\": 5,\"Z\": 6}]");
+			REQUIRE(result ==
+				R"teststr({
+    "Type ID": 14332516166325358969,
+    "Data": [
+        {
+            "X": 1.0,
+            "Y": 2.0,
+            "Z": 3.0
+        },
+        {
+            "X": 4.0,
+            "Y": 5.0,
+            "Z": 6.0
+        }
+    ]
+})teststr");
 			stream.str(std::move(result));
 
 			glas::Storage::TypeVector vectorCopy;
 
-			glas::Serialization::Deserialize(stream, vectorCopy);
+			DeserializeJSon(stream, vectorCopy);
 
 			REQUIRE(vectorCopy.Size() == 2);
 			REQUIRE(vectorCopy.Get<Vector>(0).X == vector.Get<Vector>(0).X);
@@ -540,6 +519,139 @@ namespace SerializeTest
 			REQUIRE(vectorCopy.Size() == 2);
 			REQUIRE(vectorCopy.Get<Vector>(0).X == vector.Get<Vector>(0).X);
 			REQUIRE(vectorCopy.Get<Vector>(1).Y == vector.Get<Vector>(1).Y);
+		}
+	}
+
+	TEST_CASE("YAML serialization")
+	{
+		SECTION("Vector")
+		{
+			Vector vector{};
+			std::stringstream stream{};
+
+			SerializeYaml(stream, vector);
+			std::string streamString = stream.str();
+
+			REQUIRE(streamString ==
+				R"teststr(X: 0
+Y: 0
+Z: 0)teststr");
+
+			vector.X = 5.f;
+			vector.Y = -1.5f;
+			vector.Z = 300.f;
+
+			stream.str("");
+			SerializeYaml(stream, vector);
+			streamString = stream.str();
+
+			REQUIRE(streamString == R"teststr(X: 5
+Y: -1.5
+Z: 300)teststr");
+
+		}
+
+		SECTION("Transform")
+		{
+			Transform transform{};
+			Transform transform2{};
+			{
+				std::stringstream stream{};
+
+				SerializeYaml(stream, transform);
+				DeserializeYaml(stream, transform2);
+
+				REQUIRE(transform.Translation.X == transform2.Translation.X);
+				REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+				REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+				REQUIRE(transform.Scale.X == transform2.Scale.X);
+				REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+				REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+				REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+				REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+				REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+				REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+
+			}
+
+			transform.Translation.X = 5.f;
+			transform.Translation.Y = -1.5f;
+			transform.Translation.Z = 999.99f;
+			transform.Scale.X = -500.323f;
+			transform.Scale.Y = -0.f;
+			transform.Scale.Z = 0;
+			transform.Rotation.X = -500.323f;
+			transform.Rotation.Y = -0.f;
+			transform.Rotation.Z = 23.4214f;
+			transform.Rotation.W = 64.513f;
+
+			{
+				std::stringstream stream{};
+
+				std::cout << "\n\n";
+				SerializeYaml(std::cout, transform);
+				std::cout << "\n\n";
+
+				SerializeYaml(stream, transform);
+				DeserializeYaml(stream, transform2);
+
+				REQUIRE(transform.Translation.X == transform2.Translation.X);
+				REQUIRE(transform.Translation.Y == transform2.Translation.Y);
+				REQUIRE(transform.Translation.Z == transform2.Translation.Z);
+				REQUIRE(transform.Scale.X == transform2.Scale.X);
+				REQUIRE(transform.Scale.Y == transform2.Scale.Y);
+				REQUIRE(transform.Scale.Z == transform2.Scale.Z);
+				REQUIRE(transform.Rotation.X == transform2.Rotation.X);
+				REQUIRE(transform.Rotation.Y == transform2.Rotation.Y);
+				REQUIRE(transform.Rotation.Z == transform2.Rotation.Z);
+				REQUIRE(transform.Rotation.W == transform2.Rotation.W);
+			}
+		}
+
+		SECTION("Gameobject")
+		{
+			std::stringstream stream{};
+
+			GameObject object0{};
+			GameObject object1{};
+
+			object0.Randomize();
+
+			std::cout << "\n\n";
+			SerializeYaml(std::cout, object0);
+			std::cout << "\n\n";
+
+			SerializeYaml(stream, object0);
+
+			DeserializeYaml(stream, object1);
+
+			REQUIRE(object0.GetId() == object1.GetId());
+			REQUIRE(object0.GetName() == object1.GetName());
+			REQUIRE(object0.GetTransform().Translation.Y == object1.GetTransform().Translation.Y);
+		}
+
+		SECTION("Scene")
+		{
+			std::stringstream stream{};
+
+			Scene scene0{};
+			Scene scene1{};
+
+			scene0.GetOjects().emplace_back().Randomize();
+			scene0.GetOjects().emplace_back().Randomize();
+			scene0.GetOjects().emplace_back().Randomize();
+
+			std::cout << "\n\n";
+			SerializeYaml(std::cout, scene0);
+			std::cout << "\n\n";
+
+			SerializeYaml(stream, scene0);
+
+			DeserializeYaml(stream, scene1);
+
+			REQUIRE(scene0.GetOjects()[0].GetId() == scene1.GetOjects()[0].GetId());
+			REQUIRE(scene0.GetOjects()[1].GetName() == scene1.GetOjects()[1].GetName());
+			REQUIRE(scene0.GetOjects()[2].GetTransform().Translation.Y == scene1.GetOjects()[2].GetTransform().Translation.Y);
 		}
 	}
 

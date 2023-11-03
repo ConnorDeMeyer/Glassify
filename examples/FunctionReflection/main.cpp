@@ -3,27 +3,27 @@
 #include <iostream>
 #include <source_location>
 
-int GLAS_FUNCTIONTest(int param)
+int FunctionTest(int param)
 {
-	std::cout << "Executed GLAS_FUNCTION Test with parameter " << param << '\n';
+	std::cout << "Executed Function Test with parameter " << param << '\n';
 	return param * 2;
 }
 
-GLAS_FUNCTION(GLAS_FUNCTIONTest);
+GLAS_FUNCTION(FunctionTest);
 
 
-void GLAS_FUNCTIONOverload()
+void FunctionOverload()
 {
 	std::cout << "Overload 1\n";
 }
 
-void GLAS_FUNCTIONOverload(int)
+void FunctionOverload(int)
 {
 	std::cout << "Overload 2\n";
 }
 
-GLAS_FUNCTION(static_cast<void(*)()>(GLAS_FUNCTIONOverload));
-GLAS_FUNCTION(static_cast<void(*)(int)>(GLAS_FUNCTIONOverload));
+GLAS_FUNCTION(static_cast<void(*)()>(FunctionOverload));
+GLAS_FUNCTION(static_cast<void(*)(int)>(FunctionOverload));
 
 
 class Foo
@@ -48,31 +48,31 @@ GLAS_MEMBER_FUNCTION(Foo, ConstMethodTest);
 int main()
 {
 	{
-		auto GLAS_FUNCTIONTestID = GLAS_FUNCTION_ID(GLAS_FUNCTIONTest);
+		auto FunctionTestID = GLAS_FUNCTION_ID(FunctionTest);
 
-		int result = GLAS_FUNCTIONTest(5);
-		std::cout << "GLAS_FUNCTION Test returned " << result << '\n';
+		int result = FunctionTest(5);
+		std::cout << "Function Test returned " << result << '\n';
 
-		if (const auto GLAS_FUNCTIONTestAddress = GLAS_FUNCTIONTestID.Cast<int, int>())
+		if (const auto FunctionTestAddress = FunctionTestID.Cast<int, int>())
 		{
-			result = GLAS_FUNCTIONTestAddress(5);
-			std::cout << "GLAS_FUNCTION Test returned " << result << '\n';
+			result = FunctionTestAddress(5);
+			std::cout << "Function Test returned " << result << '\n';
 		}
 	}
 
 	std::cout << "\n\n";
 
 	{
-		auto GLAS_FUNCTIONOverload1ID = GLAS_FUNCTION_ID(static_cast<void(*)()>(GLAS_FUNCTIONOverload));
-		auto GLAS_FUNCTIONOverload2ID = GLAS_FUNCTION_ID(static_cast<void(*)(int)>(GLAS_FUNCTIONOverload));
+		auto FunctionOverload1ID = GLAS_FUNCTION_ID(static_cast<void(*)()>(FunctionOverload));
+		auto FunctionOverload2ID = GLAS_FUNCTION_ID(static_cast<void(*)(int)>(FunctionOverload));
 
-		if (const auto GLAS_FUNCTIONOverload1 = GLAS_FUNCTIONOverload1ID.Cast<void>())
+		if (const auto FunctionOverload1 = FunctionOverload1ID.Cast<void>())
 		{
-			GLAS_FUNCTIONOverload1();
+			FunctionOverload1();
 		}
-		if (const auto GLAS_FUNCTIONOverload2 = GLAS_FUNCTIONOverload2ID.Cast<void, int>())
+		if (const auto FunctionOverload2 = FunctionOverload2ID.Cast<void, int>())
 		{
-			GLAS_FUNCTIONOverload2(0);
+			FunctionOverload2(0);
 		}
 	}
 
