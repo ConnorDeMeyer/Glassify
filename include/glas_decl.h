@@ -265,8 +265,17 @@ namespace glas
 		 */
 		const TypeInfo&			GetInfo		()					const;
 		constexpr void			SetTypeId	(uint64_t typeId)			{ m_ID = typeId; }
-		constexpr uint64_t		GetId		()					const	{ return m_ID; }
+
+		/** Checks whether the Type Id is valid. */
 		constexpr bool			IsValid		()					const	{ return m_ID; }
+
+		/**
+		 * Gets the hash of the Type. Which is the ID of the type.
+		 * Same as GetHash()
+		 */
+		constexpr uint64_t		GetId		()					const	{ return m_ID; }
+		constexpr uint64_t		GetHash		()					const	{ return m_ID; }
+
 
 		/**
 		 * Returns the info of the member variable that is found at the given offset (offsetof()).
@@ -1106,6 +1115,12 @@ namespace glas
 	template <typename T>
 	const void* GetVTable(const T* instance) requires std::is_polymorphic_v<T>;
 
+	/**
+	 * Gets the Type ID of the given class instance.
+	 * It uses the VTable address to identify which type it is.
+	 * Make sure the class is properly registered using GLAS_CHILD(CLASS, T) if the child class has multiple base classes.
+	 * @returns the Type Id of the class or an invalid TypeId if the vTable pointer was not found.
+	 */
 	template <typename T>
 	TypeId GetTypeIDFromPolymorphic(const T* instance) requires std::is_polymorphic_v<T>;
 
