@@ -700,7 +700,7 @@ namespace glas
 		 * v-table pointer of the type in case the type is polymorphic
 		 * @warning experimental
 		 */
-		void* VTable{ };
+		const void*					VTable{ };
 
 		/**
 		 * Member variables that have been registered to this type.
@@ -1101,8 +1101,13 @@ namespace glas
 	 * @see GLAS_CHILD
 	 */
 	template <typename Parent, typename Child>
-	constexpr void RegisterChild();
+	void RegisterChild();
 
+	template <typename T>
+	const void* GetVTable(const T* instance) requires std::is_polymorphic_v<T>;
+
+	template <typename T>
+	TypeId GetTypeIDFromPolymorphic(const T* instance) requires std::is_polymorphic_v<T>;
 
 	inline const void* VoidOffset(const void* data, size_t offset)
 	{

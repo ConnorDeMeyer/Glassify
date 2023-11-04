@@ -5,6 +5,7 @@
 class Parent1
 {
 public:
+	virtual ~Parent1() = default;
 	virtual void Test(){}
 	int a{ 1 }, b{ 2 }, c{ 3 };
 };
@@ -12,6 +13,7 @@ public:
 class Parent2
 {
 public:
+	virtual ~Parent2() = default;
 	virtual void Test2(){}
 	int d{ 4 }, e{ 5 }, f{ 6 };
 };
@@ -19,6 +21,8 @@ public:
 class Child1 : public Parent1, public Parent2
 {
 public:
+	virtual ~Child1() = default;
+
 	int g{ 7 }, h{ 8 }, i{ 9 };
 };
 
@@ -28,6 +32,7 @@ GLAS_CHILD(Parent2, Child1)
 class ComponentBase
 {
 public:
+	virtual ~ComponentBase() = default;
 	virtual void Update(float){}
 	virtual void Render() const{}
 };
@@ -35,6 +40,7 @@ public:
 class Transform : public ComponentBase
 {
 public:
+	virtual ~Transform() = default;
 	void Update(float) override{}
 };
 
@@ -90,5 +96,16 @@ int main()
 	for (auto& [id, info] : glas::GetAllTypeInfo())
 	{
 		std::cout << info.Name << '\n';
+	}
+
+	{
+		std::unique_ptr<Parent1> child1 = std::make_unique<Child1>();
+		std::unique_ptr<Parent2> child2 = std::make_unique<Child1>();
+
+		auto typeId1 = glas::GetTypeIDFromPolymorphic(child1.get());
+		std::cout << typeId1.GetInfo().Name << '\n';
+
+		auto typeId2 = glas::GetTypeIDFromPolymorphic(child2.get());
+		std::cout << typeId2.GetInfo().Name << '\n';
 	}
 }

@@ -224,10 +224,13 @@ namespace glas
 		const auto it = typeInfoMap.find(hash);
 		if (it == typeInfoMap.end())
 		{
-			return typeInfoMap.emplace(
+			// if not found, register type info
+			auto& createdTypeInfo = typeInfoMap.emplace(
 				hash,
 				TypeInfo::Create<T>()
 			).first->second;
+
+			return createdTypeInfo;
 		}
 		return it->second;
 	}
@@ -688,8 +691,7 @@ namespace glas
 
 		if constexpr (std::is_polymorphic_v<T> && std::is_default_constructible_v<T>)
 		{
-			T instance{};
-			info.VTable = *std::bit_cast<void**>(&instance);
+			info.VTable = RegisterVTable<T>();
 		}
 
 #ifdef GLAS_STORAGE
@@ -814,6 +816,28 @@ namespace glas
 		return hash(name) ^ GetTypesHash<Class, ReturnType, ParameterTypes...>();
 	}
 
+	template <typename T>
+	const void* GetVTable(const T* instance) requires std::is_polymorphic_v<T>
+	{
+		return *std::bit_cast<void**>(instance);
+	}
+
+	template <typename T>
+	TypeId GetTypeIDFromPolymorphic(const T* instance) requires std::is_polymorphic_v<T>
+	{
+		if (!instance)
+			return {};
+
+		const void* vTable = GetVTable(instance);
+
+		auto it = GetGlobalData().VTableMap.find(vTable);
+		if (it != GetGlobalData().VTableMap.end())
+		{
+			return it->second;
+		}
+		return {};
+	}
+
 	template <typename Parent, typename Child>
 	constexpr size_t GetClassOffset()
 	{
@@ -823,7 +847,7 @@ namespace glas
 	}
 
 	template <typename Parent, typename Child>
-	constexpr void RegisterChild()
+	void RegisterChild()
 	{
 		auto& parentInfo = const_cast<TypeInfo&>(RegisterType<Parent>());
 		auto& childInfo = const_cast<TypeInfo&>(RegisterType<Child>());
@@ -831,7 +855,24 @@ namespace glas
 		assert(parentInfo.ChildClasses.end() == std::ranges::find(parentInfo.ChildClasses, TypeId::Create<Child>()));
 		assert(childInfo.BaseClasses.end() == std::ranges::find_if(childInfo.BaseClasses, [](BaseClassInfo info) { return info.BaseId == TypeId::Create<Parent>(); }));
 
+		if constexpr (std::is_default_constructible_v<Child>)
+		{
+			Child child{};
+			Parent* parent = &child;
+
+			// Register VTable
+			GetGlobalData().VTableMap.emplace(GetVTable(parent), TypeId::Create<Child>());
+		}
+
 		parentInfo.ChildClasses.emplace_back(TypeId::Create<Child>());
 		childInfo.BaseClasses.emplace_back(BaseClassInfo::Create<Parent, Child>());
+	}
+
+	template <typename T>
+	const void* RegisterVTable() requires std::is_polymorphic_v<T> && std::is_default_constructible_v<T>
+	{
+		T instance{};
+		const void* vTable = GetVTable(&instance);
+		return GetGlobalData().VTableMap.emplace(vTable, TypeId::Create<T>()).first->first;
 	}
 }
