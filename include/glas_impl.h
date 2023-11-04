@@ -691,7 +691,8 @@ namespace glas
 
 		if constexpr (std::is_polymorphic_v<T> && std::is_default_constructible_v<T>)
 		{
-			info.VTable = RegisterVTable<T>();
+			T instance{};
+			info.VTable = GetVTable(&instance);
 		}
 
 #ifdef GLAS_STORAGE
@@ -866,13 +867,5 @@ namespace glas
 
 		parentInfo.ChildClasses.emplace_back(TypeId::Create<Child>());
 		childInfo.BaseClasses.emplace_back(BaseClassInfo::Create<Parent, Child>());
-	}
-
-	template <typename T>
-	const void* RegisterVTable() requires std::is_polymorphic_v<T> && std::is_default_constructible_v<T>
-	{
-		T instance{};
-		const void* vTable = GetVTable(&instance);
-		return GetGlobalData().VTableMap.emplace(vTable, TypeId::Create<T>()).first->first;
 	}
 }

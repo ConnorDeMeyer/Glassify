@@ -98,6 +98,25 @@ int main()
 		std::cout << info.Name << '\n';
 	}
 
+	switch (glas::TypeId::Create<int>().GetId())
+	{
+	case glas::TypeId::Create<int>().GetHash():
+		std::cout << "Type int\n";
+		break;
+
+	case glas::TypeHash<float>():
+		std::cout << "Type float\n";
+		break;
+
+	case 0:
+		std::cout << "Type was invalid\n";
+		break;
+
+	default:
+		std::cout << "Type was something else\n";
+		break;
+	}
+
 	{
 		std::unique_ptr<Parent1> child1 = std::make_unique<Child1>();
 		std::unique_ptr<Parent2> child2 = std::make_unique<Child1>();
