@@ -48,6 +48,16 @@ namespace glas::Serialization
 
 namespace glas::Serialization
 {
+	template <typename T>
+	concept CustomJSonSerializer = requires(T t, rapidjson::Value jsonVal, RapidJsonAllocator allocator)
+	{
+		JSonSerializer<T>::Serialize(jsonVal, t, allocator);
+		JSonSerializer<T>::Deserialize(jsonVal, t);
+	};
+}
+
+namespace glas::Serialization
+{
 	void SerializeJSon(std::ostream& stream, const void* data, TypeId type);
 	void DeserializeJSon(std::istream& stream, void* data, TypeId type);
 
@@ -56,16 +66,18 @@ namespace glas::Serialization
 	template <typename T>
 	void DeserializeJSon(std::istream& stream, T& value);
 
+	template <typename T>
+	void SerializeJSon(rapidjson::Value& jsonVal, const T& value, RapidJsonAllocator& allocator);
+	template <typename T>
+	void DeserializeJSon(rapidjson::Value& jsonVal, T& value);
+
 	void SerializeJSonDefault(rapidjson::Value& jsonVal, const void* data, TypeId type, RapidJsonAllocator& allocator);
 	void DeserializeJSonDefault(rapidjson::Value& jsonVal, void* data, TypeId type);
 
-	/** DEFAULT SERIALIZATION */
 	template <typename T>
-	struct JSonSerializer
-	{
-		static void Serialize(rapidjson::Value& jsonVal, const T& value, RapidJsonAllocator& allocator);
-		static void Deserialize(rapidjson::Value& jsonVal, T& value);
-	};
+	void SerializeJSonDefault(rapidjson::Value& jsonVal, const T& value, RapidJsonAllocator& allocator);
+	template <typename T>
+	void DeserializeJSonDefault(rapidjson::Value& jsonVal, T& value);
 
 	/** FLOAT */
 	template <>

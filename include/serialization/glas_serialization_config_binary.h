@@ -49,6 +49,16 @@ namespace glas::Serialization
 namespace glas::Serialization
 {
 	template <typename T>
+	concept CustomBinarySerializer = requires(std::istream istream, std::ostream ostream, T t)
+	{
+		BinarySerializer<T>::Serialize(ostream, t);
+		BinarySerializer<T>::Deserialize(istream, t);
+	};
+}
+
+namespace glas::Serialization
+{
+	template <typename T>
 	void SerializeBinary(std::ostream& stream, const T& value);
 	template <typename T>
 	void DeserializeBinary(std::istream& stream, T& value);
@@ -56,13 +66,10 @@ namespace glas::Serialization
 	void SerializeBinaryDefault(std::ostream& stream, const void* data, glas::TypeId type);
 	void DeserializeBinaryDefault(std::istream& stream, void* data, glas::TypeId type);
 
-	/** DEFAULT SERIALIZATION */
 	template <typename T>
-	struct BinarySerializer
-	{
-		static void Serialize(std::ostream& stream, const T& value);
-		static void Deserialize(std::istream& stream, T& value);
-	};
+	void SerializeBinaryDefault(std::ostream& stream, const T& value);
+	template <typename T>
+	void DeserializeBinaryDefault(std::istream& stream, T& value);
 
 #ifdef _STRING_
 	/** STRING */

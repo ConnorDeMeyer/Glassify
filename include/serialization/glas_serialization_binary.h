@@ -16,8 +16,32 @@ namespace glas::Serialization
 	template <typename T>
 	constexpr void FillTypeInfoBinary(TypeInfo& info)
 	{
-		info.BinarySerializer = [](std::ostream& stream, const void* data) { BinarySerializer<T>::Serialize(stream, *static_cast<const T*>(data)); };
-		info.BinaryDeserializer = [](std::istream& stream, void* data) { BinarySerializer<T>::Deserialize(stream, *static_cast<T*>(data)); };
+		if constexpr (CustomBinarySerializer<T>)
+		{
+			info.BinarySerializer = [](std::ostream& stream, const void* data)
+				{
+					BinarySerializer<T>::Serialize(stream, *static_cast<const T*>(data));
+				};
+
+			info.BinaryDeserializer = [](std::istream& stream, void* data)
+				{
+					BinarySerializer<T>::Deserialize(stream, *static_cast<T*>(data));
+				};
+		}
+		else
+		{
+			info.BinarySerializer = [](std::ostream& stream, const void* data)
+				{
+					SerializeBinaryDefault(stream, *static_cast<const T*>(data));
+				};
+
+			info.BinaryDeserializer = [](std::istream& stream, void* data)
+				{
+					DeserializeBinaryDefault(stream, *static_cast<T*>(data));
+				};
+		}
+
+		
 	}
 
 	/** HELPER FUNCTIONS */
@@ -39,13 +63,19 @@ namespace glas::Serialization
 	template <typename T>
 	void SerializeBinary(std::ostream& stream, const T& value)
 	{
-		BinarySerializer<T>::Serialize(stream, value);
+		if constexpr (CustomBinarySerializer<T>)
+			BinarySerializer<T>::Serialize(stream, value);
+		else
+			SerializeBinaryDefault(stream, value);
 	}
 
 	template <typename T>
 	void DeserializeBinary(std::istream& stream, T& value)
 	{
-		BinarySerializer<T>::Deserialize(stream, value);
+		if constexpr (CustomBinarySerializer<T>)
+			BinarySerializer<T>::Deserialize(stream, value);
+		else
+			DeserializeBinaryDefault(stream, value);
 	}
 
 	/** DEFAULT SERIALIZATION WITH MEMBERS */
@@ -77,9 +107,8 @@ namespace glas::Serialization
 		}
 	}
 
-	/** DEFAULT SERIALIZATION */
 	template <typename T>
-	void BinarySerializer<T>::Serialize(std::ostream& stream, const T& value)
+	void SerializeBinaryDefault(std::ostream& stream, const T& value)
 	{
 		if constexpr (std::is_trivially_copyable_v<T>)
 		{
@@ -90,9 +119,9 @@ namespace glas::Serialization
 			SerializeBinaryDefault(stream, &value, TypeId::Create<T>());
 		}
 	}
-	
+
 	template <typename T>
-	void BinarySerializer<T>::Deserialize(std::istream& stream, T& value)
+	void DeserializeBinaryDefault(std::istream& stream, T& value)
 	{
 		if constexpr (std::is_trivially_copyable_v<T>)
 		{
@@ -141,7 +170,7 @@ namespace glas::Serialization
 
 			for (auto& element : value)
 			{
-				BinarySerializer<T>::Serialize(stream, element);
+				SerializeBinary(stream, element);
 			}
 		}
 	}
@@ -168,7 +197,7 @@ namespace glas::Serialization
 			for (size_t i{}; i < size; ++i)
 			{
 				auto& element = value.emplace_back();
-				BinarySerializer<T>::Deserialize(stream, element);
+				DeserializeBinary(stream, element);
 			}
 		}
 	}
@@ -206,7 +235,7 @@ namespace glas::Serialization
 		else
 		{
 			for (auto& element : value)
-				BinarySerializer<T>::Serialize(stream, element);
+				SerializeBinary(stream, element);
 		}
 	}
 
@@ -220,7 +249,7 @@ namespace glas::Serialization
 		else
 		{
 			for (auto& element : value)
-				BinarySerializer<T>::Deserialize(stream, element);
+				DeserializeBinary(stream, element);
 		}
 	}
 
@@ -234,7 +263,7 @@ namespace glas::Serialization
 		WriteStream(stream, value.size());
 
 		for (auto& element : value)
-			BinarySerializer<T>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename T, typename Alloc>
@@ -247,7 +276,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto& element = value.emplace_back();
-			BinarySerializer<T>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 		}
 	}
 #endif
@@ -261,7 +290,7 @@ namespace glas::Serialization
 		WriteStream(stream, size);
 
 		for (auto& element : value)
-			BinarySerializer<T>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename T, typename Alloc>
@@ -274,7 +303,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto& element = value.emplace_front();
-			BinarySerializer<T>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 		}
 	}
 #endif
@@ -287,7 +316,7 @@ namespace glas::Serialization
 		WriteStream(stream, value.size());
 
 		for (auto& element : value)
-			BinarySerializer<T>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename T, typename Alloc>
@@ -300,7 +329,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto& element = value.emplace_back();
-			BinarySerializer<T>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 		}
 	}
 #endif
@@ -313,7 +342,7 @@ namespace glas::Serialization
 		WriteStream(stream, value.size());
 
 		for (auto& element : value)
-			BinarySerializer<T>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename T, typename Hasher, typename Keyeq, typename Alloc>
@@ -326,7 +355,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto element = T{};
-			BinarySerializer<T>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 			value.insert(element);
 		}
 	}
@@ -338,7 +367,7 @@ namespace glas::Serialization
 		WriteStream(stream, value.size());
 
 		for (auto& element : value)
-			BinarySerializer<T>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename T, typename Hasher, typename Keyeq, typename Alloc>
@@ -351,7 +380,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto element = T{};
-			BinarySerializer<T>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 			value.insert(element);
 		}
 	}
@@ -365,7 +394,7 @@ namespace glas::Serialization
 		WriteStream(stream, value.size());
 
 		for (auto& element : value)
-			BinarySerializer<std::pair<Key, Value>>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename Key, typename Value, typename P, typename Alloc>
@@ -378,7 +407,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto element = std::pair<Key, Value>{};
-			BinarySerializer<std::pair<Key, Value>>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 			value.insert(element);
 		}
 	}
@@ -390,7 +419,7 @@ namespace glas::Serialization
 		WriteStream(stream, value.size());
 
 		for (auto& element : value)
-			BinarySerializer<std::pair<Key, Value>>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename Key, typename Value, typename P, typename Alloc>
@@ -403,7 +432,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto element = std::pair<Key, Value>{};
-			BinarySerializer<std::pair<Key, Value>>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 			value.insert(element);
 		}
 	}
@@ -417,7 +446,7 @@ namespace glas::Serialization
 		WriteStream(stream, value.size());
 
 		for (auto& element : value)
-			BinarySerializer<std::pair<Key, Value>>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename Key, typename Value, typename Hasher, typename Keyeq, typename Alloc>
@@ -430,7 +459,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto element = std::pair<Key, Value>{};
-			BinarySerializer<std::pair<Key, Value>>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 			value.insert(element);
 		}
 	}
@@ -442,7 +471,7 @@ namespace glas::Serialization
 		WriteStream(stream, value.size());
 
 		for (auto& element : value)
-			BinarySerializer<std::pair<Key, Value>>::Serialize(stream, element);
+			SerializeBinary(stream, element);
 	}
 
 	template <typename Key, typename Value, typename Hasher, typename Keyeq, typename Alloc>
@@ -455,7 +484,7 @@ namespace glas::Serialization
 		for (size_t i{}; i < size; ++i)
 		{
 			auto element = std::pair<Key, Value>{};
-			BinarySerializer<std::pair<Key, Value>>::Deserialize(stream, element);
+			DeserializeBinary(stream, element);
 			value.insert(element);
 		}
 	}
@@ -468,7 +497,7 @@ namespace glas::Serialization
 	{
 		WriteStream(stream, static_cast<bool>(value));
 		if (value)
-			BinarySerializer<T>::Serialize(stream, *value);
+			SerializeBinary(stream, *value);
 	}
 
 	template <typename T, typename Delete>
@@ -477,7 +506,7 @@ namespace glas::Serialization
 		if (ReadStream<bool>(stream))
 		{
 			value = std::make_unique_for_overwrite<T>();
-			BinarySerializer<T>::Deserialize(stream, value);
+			DeserializeBinary(stream, value);
 		}
 	}
 #endif
@@ -489,7 +518,7 @@ namespace glas::Serialization
 	{
 		WriteStream(stream, value.has_value());
 		if (value)
-			BinarySerializer<T>::Serialize(stream, value.value);
+			SerializeBinary(stream, value.value);
 	}
 
 	template <typename T>
@@ -498,7 +527,7 @@ namespace glas::Serialization
 		if (ReadStream<bool>(stream))
 		{
 			auto& val = value.emplace();
-			BinarySerializer<T>::Deserialize(stream, val);
+			DeserializeBinary(stream, val);
 		}
 	}
 #endif
@@ -508,15 +537,15 @@ namespace glas::Serialization
 	template <typename T1, typename T2>
 	void BinarySerializer<std::pair<T1, T2>>::Serialize(std::ostream& stream, const std::pair<T1, T2>& value)
 	{
-		BinarySerializer<T1>::Serialize(stream, value.first);
-		BinarySerializer<T2>::Serialize(stream, value.second);
+		SerializeBinary(stream, value.first);
+		SerializeBinary(stream, value.second);
 	}
 
 	template <typename T1, typename T2>
 	void BinarySerializer<std::pair<T1, T2>>::Deserialize(std::istream& stream, std::pair<T1, T2>& value)
 	{
-		BinarySerializer<T1>::Deserialize(stream, value.first);
-		BinarySerializer<T2>::Deserialize(stream, value.second);
+		DeserializeBinary(stream, value.first);
+		DeserializeBinary(stream, value.second);
 	}
 
 	/** TUPLE */
@@ -526,7 +555,7 @@ namespace glas::Serialization
 		using Type = std::tuple_element_t<Index, Tuple>;
 		constexpr size_t size = std::tuple_size_v<Tuple>;
 
-		BinarySerializer<Type>::Serialize(stream, std::get<Index>(tuple));
+		SerializeBinary(stream, std::get<Index>(tuple));
 		if constexpr (Index + 1 < size)
 		{
 			SerializeBinaryTuple<Index + 1, Tuple>(stream, tuple);
@@ -539,7 +568,7 @@ namespace glas::Serialization
 		using Type = std::tuple_element_t<Index, Tuple>;
 		constexpr size_t size = std::tuple_size_v<Tuple>;
 
-		BinarySerializer<Type>::Deserialize(stream, std::get<Index>(tuple));
+		DeserializeBinary(stream, std::get<Index>(tuple));
 		if constexpr (Index + 1 < size)
 		{
 			DeserializeBinaryTuple<Index + 1, Tuple>(stream, tuple);

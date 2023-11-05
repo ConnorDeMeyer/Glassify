@@ -19,15 +19,30 @@ namespace glas::Serialization
 	template <typename T>
 	constexpr void FillTypeInfoJSon(TypeInfo& info)
 	{
-		info.JSonSerializer = [](rapidjson::Value& jsonVal, const void* data, RapidJsonAllocator& allocator)
+		if constexpr (CustomJSonSerializer<T>)
 		{
-			JSonSerializer<T>::Serialize(jsonVal, *static_cast<const T*>(data), allocator);
-		};
+			info.JSonSerializer = [](rapidjson::Value& jsonVal, const void* data, RapidJsonAllocator& allocator)
+				{
+					JSonSerializer<T>::Serialize(jsonVal, *static_cast<const T*>(data), allocator);
+				};
 
-		info.JSonDeserializer = [](rapidjson::Value& jsonVal, void* data)
+			info.JSonDeserializer = [](rapidjson::Value& jsonVal, void* data)
+				{
+					JSonSerializer<T>::Deserialize(jsonVal, *static_cast<T*>(data));
+				};
+		}
+		else
 		{
-			JSonSerializer<T>::Deserialize(jsonVal, *static_cast<T*>(data));
-		};
+			info.JSonSerializer = [](rapidjson::Value& jsonVal, const void* data, RapidJsonAllocator& allocator)
+				{
+					SerializeJSonDefault(jsonVal, *static_cast<const T*>(data), allocator);
+				};
+
+			info.JSonDeserializer = [](rapidjson::Value& jsonVal, void* data)
+				{
+					DeserializeJSonDefault(jsonVal, *static_cast<T*>(data));
+				};
+		}
 	}
 
 	inline void SerializeJSon(std::ostream& stream, const void* data, TypeId type)
@@ -80,6 +95,24 @@ namespace glas::Serialization
 		DeserializeJSon(stream, &value, TypeId::Create<T>());
 	}
 
+	template <typename T>
+	void SerializeJSon(rapidjson::Value& jsonVal, const T& value, RapidJsonAllocator& allocator)
+	{
+		if constexpr (CustomJSonSerializer<T>)
+			JSonSerializer<T>::Serialize(jsonVal, value, allocator);
+		else
+			SerializeJSonDefault(jsonVal, value, allocator);
+	}
+
+	template <typename T>
+	void DeserializeJSon(rapidjson::Value& jsonVal, T& value)
+	{
+		if constexpr (CustomJSonSerializer<T>)
+			JSonSerializer<T>::Deserialize(jsonVal, value);
+		else
+			DeserializeJSonDefault(jsonVal, value);
+	}
+
 	inline void SerializeJSonDefault(rapidjson::Value& jsonVal, const void* data, glas::TypeId type, RapidJsonAllocator& allocator)
 	{
 		auto& info = type.GetInfo();
@@ -119,19 +152,17 @@ namespace glas::Serialization
 		}
 	}
 
-	/** DEFAULT SERIALIZATION */
 	template <typename T>
-	void JSonSerializer<T>::Serialize(rapidjson::Value& jsonVal, const T& value, RapidJsonAllocator& allocator)
+	void SerializeJSonDefault(rapidjson::Value& jsonVal, const T& value, RapidJsonAllocator& allocator)
 	{
-		SerializeJSonDefault(jsonVal, &value, TypeId::Create<T>(), allocator);
+		SerializeJSonDefault(jsonVal, static_cast<const void*>(&value), TypeId::Create<T>(), allocator);
 	}
 
 	template <typename T>
-	void JSonSerializer<T>::Deserialize(rapidjson::Value& jsonVal, T& value)
+	void DeserializeJSonDefault(rapidjson::Value& jsonVal, T& value)
 	{
-		DeserializeJSonDefault(jsonVal, &value, TypeId::Create<T>());
+		DeserializeJSonDefault(jsonVal, static_cast<void*>(&value), TypeId::Create<T>());
 	}
-
 
 	/** FLOAT */
 	inline void JSonSerializer<float>::Serialize(rapidjson::Value& jsonVal, const float& value, RapidJsonAllocator&)
@@ -323,7 +354,7 @@ namespace glas::Serialization
 		{
 			auto arrayElement = rapidjson::Value(rapidjson::kObjectType);
 
-			JSonSerializer<T>::Serialize(arrayElement, element, allocator);
+			SerializeJSon(arrayElement, element, allocator);
 
 			jsonVal.PushBack(arrayElement, allocator);
 		}
@@ -335,7 +366,7 @@ namespace glas::Serialization
 		for (auto& element : jsonVal.GetArray())
 		{
 			T value{};
-			JSonSerializer<T>::Deserialize(element, value);
+			DeserializeJSon(element, value);
 
 			adder(value);
 		}
@@ -353,7 +384,7 @@ namespace glas::Serialization
 		size_t counter{};
 		for (auto& element : jsonVal.GetArray())
 		{
-			JSonSerializer<T>::Deserialize(element, value[counter]);
+			DeserializeJSon(element, value[counter]);
 			++counter;
 		}
 	}
@@ -403,7 +434,7 @@ namespace glas::Serialization
 		size_t counter{};
 		for (auto& element : jsonVal.GetArray())
 		{
-			JSonSerializer<T>::Deserialize(element, value[counter]);
+			DeserializeJSon(element, value[counter]);
 			++counter;
 		}
 	}
@@ -554,7 +585,7 @@ namespace glas::Serialization
 		{
 			rapidjson::Value ownedVal{ rapidjson::kObjectType };
 
-			JSonSerializer<T>::Serialize(jsonVal, *value, allocator);
+			SerializeJSon(jsonVal, *value, allocator);
 
 			ownedVal.AddMember("Value", ownedVal, allocator);
 		}
@@ -571,7 +602,7 @@ namespace glas::Serialization
 		if (!jsonVal.IsNull())
 		{
 			value = std::make_unique<T>();
-			JSonSerializer<T>::Deserialize(jsonVal["Value"], *value);
+			DeserializeJSon(jsonVal["Value"], *value);
 		}
 	}
 #endif
@@ -585,7 +616,7 @@ namespace glas::Serialization
 		{
 			rapidjson::Value ownedVal{ rapidjson::kObjectType };
 
-			JSonSerializer<T>::Serialize(jsonVal, value.value(), allocator);
+			SerializeJSon(jsonVal, value.value(), allocator);
 
 			ownedVal.AddMember("Value", ownedVal, allocator);
 		}
@@ -601,7 +632,7 @@ namespace glas::Serialization
 		if (!jsonVal.IsNull())
 		{
 			auto& val = value.emplace();
-			JSonSerializer<T>::Deserialize(jsonVal["Value"], val);
+			DeserializeJSon(jsonVal["Value"], val);
 		}
 	}
 #endif
@@ -614,8 +645,8 @@ namespace glas::Serialization
 		rapidjson::Value Val1{ rapidjson::kObjectType };
 		rapidjson::Value Val2{ rapidjson::kObjectType };
 
-		JSonSerializer<T1>::Serialize(Val1, value.first, allocator);
-		JSonSerializer<T2>::Serialize(Val2, value.second, allocator);
+		SerializeJSon(Val1, value.first, allocator);
+		SerializeJSon(Val2, value.second, allocator);
 
 		jsonVal.AddMember("First", Val1, allocator);
 		jsonVal.AddMember("Second", Val2, allocator);
@@ -624,8 +655,8 @@ namespace glas::Serialization
 	template <typename T1, typename T2>
 	void JSonSerializer<std::pair<T1, T2>>::Deserialize(rapidjson::Value& jsonVal, std::pair<T1, T2>& value)
 	{
-		JSonSerializer<T1>::Deserialize(jsonVal["First"], value.first);
-		JSonSerializer<T2>::Deserialize(jsonVal["Second"], value.second);
+		DeserializeJSon(jsonVal["First"], value.first);
+		DeserializeJSon(jsonVal["Second"], value.second);
 	}
 
 	template <size_t Index, typename Tuple>
@@ -637,7 +668,7 @@ namespace glas::Serialization
 		rapidjson::Value name{ std::to_string(Index), allocator };
 		rapidjson::Value val{ rapidjson::kObjectType };
 
-		JSonSerializer<Type>::Serialize(val, std::get<Index>(tuple), allocator);
+		SerializeJSon(val, std::get<Index>(tuple), allocator);
 
 		jsonVal.AddMember(name, val, allocator);
 
@@ -648,12 +679,12 @@ namespace glas::Serialization
 	}
 
 	template <size_t Index, typename Tuple>
-	void DeserializeJSonTuple(rapidjson::Value& jsonVal, const Tuple& tuple)
+	void DeserializeJSonTuple(rapidjson::Value& jsonVal, Tuple& tuple)
 	{
 		using Type = std::tuple_element_t<Index, Tuple>;
 		constexpr size_t size = std::tuple_size_v<Tuple>;
 
-		JSonSerializer<Type>::Deserialize(jsonVal[std::to_string(Index)], std::get<Index>(tuple));
+		DeserializeJSon(jsonVal[std::to_string(Index)], std::get<Index>(tuple));
 
 		if constexpr (Index + 1 < size)
 		{
@@ -683,7 +714,7 @@ namespace glas::Serialization
 		{
 			rapidjson::Value typeVal{ rapidjson::kObjectType };
 
-			JSonSerializer<TypeId>::Serialize(typeVal, value.GetType(), allocator);
+			SerializeJSon(typeVal, value.GetType(), allocator);
 
 			jsonVal.AddMember("Type", typeVal, allocator);
 		}
@@ -717,7 +748,7 @@ namespace glas::Serialization
 		if (!typeVal.IsNull())
 		{
 			TypeId id{};
-			JSonSerializer<TypeId>::Deserialize(typeVal, id);
+			DeserializeJSon(typeVal, id);
 			value = Storage::TypeStorage(id);
 
 			if (!dataVal.IsNull())
@@ -739,7 +770,7 @@ namespace glas::Serialization
 			rapidjson::Value variableVal{ rapidjson::kObjectType };
 			rapidjson::Value dataVal{ rapidjson::kObjectType };
 
-			JSonSerializer<VariableId>::Serialize(variableVal, value.GetVariable(i), allocator);
+			SerializeJSon(variableVal, value.GetVariable(i), allocator);
 
 			if (!value.GetVariable(i).IsRefOrPointer())
 			{
@@ -769,7 +800,7 @@ namespace glas::Serialization
 		size_t counter{};
 		for (auto& arrayElement : jsonArray)
 		{
-			JSonSerializer<VariableId>::Deserialize(arrayElement["Variable ID"], variables[counter]);
+			DeserializeJSon(arrayElement["Variable ID"], variables[counter]);
 			++counter;
 		}
 
@@ -792,7 +823,7 @@ namespace glas::Serialization
 		rapidjson::Value typeVal{ rapidjson::kObjectType };
 		rapidjson::Value arrayVal{ rapidjson::kArrayType };
 
-		JSonSerializer<TypeId>::Serialize(typeVal, value.GetType(), allocator);
+		SerializeJSon(typeVal, value.GetType(), allocator);
 
 		if (value.GetType().IsValid())
 		{
